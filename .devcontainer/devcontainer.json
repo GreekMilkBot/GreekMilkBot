@@ -1,0 +1,25 @@
+{
+    "name": "greek milk bot",
+    "image": "mcr.microsoft.com/devcontainers/go:1.23-bullseye",
+    "features": {
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {},
+            // same extensions as Gitpod, should match /.gitpod.yml
+            "extensions": [
+                "editorconfig.editorconfig",
+                "dbaeumer.vscode-eslint",
+                "golang.go",
+                "stylelint.vscode-stylelint",
+                "DavidAnson.vscode-markdownlint",
+                "vitest.explorer",
+                "eamodio.gitlens",
+                "ms-azuretools.vscode-docker",
+                "github.copilot"
+            ]
+        }
+    },
+    "postCreateCommand": "make deps"
+}
