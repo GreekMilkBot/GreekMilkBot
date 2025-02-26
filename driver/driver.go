@@ -1,6 +1,9 @@
 package driver
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type DriverType int
 
@@ -21,16 +24,21 @@ type Driver interface {
 type BaseDriver struct {
 	DriverType DriverType
 	Host       string
+	Token      string
+
+	Ttl time.Duration
 
 	ReceiveChan    chan string
 	QuitChan       chan struct{}
 	ReceiveHandler func(Driver, []byte)
 }
 
-func NewBaseDriver(driverType DriverType, host string) *BaseDriver {
+func NewBaseDriver(driverType DriverType, host, token string) *BaseDriver {
 	return &BaseDriver{
 		DriverType:  driverType,
 		Host:        host,
+		Token:       token,
+		Ttl:         15 * time.Second, // OneBot v11 默认心跳值
 		ReceiveChan: make(chan string),
 		QuitChan:    make(chan struct{}),
 	}

@@ -37,7 +37,7 @@ func (a *OneBotV11Adapter) handleMessage(d driver.Driver, msg []byte) {
 	log.Debug("OneBotV11Adapter: Received message: %s", msg)
 	go func(m []byte) {
 		if err := a.processMessage(d, m); err != nil {
-			log.Error("OneBotV11Adapter: Failed to process message", err)
+			log.Error("OneBotV11Adapter: Failed to process message: %s", err)
 		}
 	}(msg)
 }

@@ -25,8 +25,7 @@ type MessageEvent struct {
 	Anonymous Anonymous `json:"anonymous"`
 }
 
-type Message struct {
-}
+type Message struct{}
 
 type SexType string
 

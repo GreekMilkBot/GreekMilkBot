@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -17,9 +18,9 @@ type WebSocketDriver struct {
 	conn *websocket.Conn
 }
 
-func NewWebSocketDriver(host string) *WebSocketDriver {
+func NewWebSocketDriver(host, token string) *WebSocketDriver {
 	return &WebSocketDriver{
-		BaseDriver: driver.NewBaseDriver(driver.DriverTypeWebSocketReverse, host),
+		BaseDriver: driver.NewBaseDriver(driver.DriverTypeWebSocketReverse, host, token),
 	}
 }
 
@@ -30,7 +31,11 @@ func (d *WebSocketDriver) Connect(ctx context.Context) error {
 
 	var err error
 	dialer := websocket.Dialer{}
-	d.conn, _, err = dialer.DialContext(ctx, d.Host, nil)
+	header := make(http.Header)
+	if d.Token != "" {
+		header.Add("Authorization", "Bearer "+d.Token)
+	}
+	d.conn, _, err = dialer.DialContext(ctx, d.Host, header)
 	if err != nil {
 		return err
 	}
@@ -50,8 +55,10 @@ func (d *WebSocketDriver) receive(ctx context.Context) {
 		default:
 		}
 
-		// set read timeout, avoid blocking
-		d.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+		if d.Ttl > 0 {
+			// set read timeout, avoid blocking
+			_ = d.conn.SetReadDeadline(time.Now().Add(d.Ttl))
+		}
 		messageType, message, err := d.conn.ReadMessage()
 		if err != nil {
 			fmt.Println("WebSocketDriver: ReadMessage error", err)

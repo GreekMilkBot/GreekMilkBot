@@ -19,6 +19,8 @@ GO_INTEGRATION_TEST_PACKAGES ?= $(shell $(GO) list ./tests/...)
 ifeq ($(IS_WINDOWS),yes)
 	GOFLAGS := -v -buildmode=exe
 	EXECUTABLE ?= greekmilkbot.exe
+	EXECUTABLE_EXT := .exe
+
 else
 	GOFLAGS := -v
 	EXECUTABLE ?= greekmilkbot
@@ -33,6 +35,7 @@ help:
 	@echo " - deps-tools                       install tool dependencies"
 	@echo " - tidy                             run go mod tidy"
 	@echo " - test                             run go tests"
+	@echo " - fmt                              format the Go code"
 
 .PHONY: go-check
 go-check:
@@ -61,3 +64,8 @@ unit-test:
 integration-test:
 	@echo "Running integration-test with $(GOTESTFLAGS) -tags '$(TEST_TAGS)'..."
 	@$(GO) test $(GOTESTFLAGS) -tags='$(TEST_TAGS)' $(GO_INTEGRATION_TEST_PACKAGES)
+
+.PHONY: fmt
+fmt:
+	@(test -f "$(GOPATH)/bin/gofumpt$(EXECUTABLE_EXT)" || $(GO) install mvdan.cc/gofumpt@latest) && \
+	"$(GOPATH)/bin/gofumpt$(EXECUTABLE_EXT)" -l -w .

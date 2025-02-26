@@ -15,7 +15,7 @@ const (
 	EventTypeRequest EventType = "request"
 )
 
-func isVaildEventType(eventType EventType) bool {
+func isValidEventType(eventType EventType) bool {
 	switch eventType {
 	case EventTypeMeta, EventTypeMessage, EventTypeNotice, EventTypeRequest:
 		return true
@@ -40,7 +40,7 @@ func (e BaseEvent) GetSelfId() int64 {
 }
 
 func (e BaseEvent) GetType() EventType {
-	if !isVaildEventType(EventType(e.PostType)) {
+	if !isValidEventType(e.PostType) {
 		log.Error("Invalid event type: %s", e.PostType)
 		return ""
 	}
