@@ -19,7 +19,7 @@ type WebSocketDriver struct {
 
 func NewWebSocketDriver(host string) *WebSocketDriver {
 	return &WebSocketDriver{
-		BaseDriver: driver.NewBaseDriver(host),
+		BaseDriver: driver.NewBaseDriver(driver.DriverTypeWebSocketReverse, host),
 	}
 }
 
@@ -50,7 +50,7 @@ func (d *WebSocketDriver) receive(ctx context.Context) {
 		default:
 		}
 
-		// 设置读取超时时间，避免长时间阻塞
+		// set read timeout, avoid blocking
 		d.conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 		messageType, message, err := d.conn.ReadMessage()
 		if err != nil {
@@ -58,7 +58,7 @@ func (d *WebSocketDriver) receive(ctx context.Context) {
 			return
 		}
 		if messageType == websocket.TextMessage && d.ReceiveHandler != nil {
-			d.ReceiveHandler(string(message))
+			d.ReceiveHandler(d, message)
 		}
 	}
 }

@@ -2,11 +2,12 @@ package v11
 
 import (
 	"context"
-	"fmt"
-	"log"
 
 	"github.com/GreekMilkBot/GreekMilkBot/adapter"
+	"github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11/event"
+	"github.com/GreekMilkBot/GreekMilkBot/bot"
 	"github.com/GreekMilkBot/GreekMilkBot/driver"
+	"github.com/GreekMilkBot/GreekMilkBot/log"
 )
 
 type OneBotV11Adapter struct {
@@ -24,7 +25,7 @@ func NewOneBotV11Adapter(driver driver.Driver) *OneBotV11Adapter {
 func (a *OneBotV11Adapter) Run(ctx context.Context) error {
 	err := a.Driver.Connect(ctx)
 	if err != nil {
-		log.Println(err)
+		log.Error("OneBotV11Adapter.Run", err)
 		return err
 	}
 
@@ -32,19 +33,41 @@ func (a *OneBotV11Adapter) Run(ctx context.Context) error {
 	return nil
 }
 
-func (a *OneBotV11Adapter) handleMessage(msg string) {
-	fmt.Printf("Adapter: Received message: %s\n", msg)
-	go func(m string) {
-		processed := a.processMessage(m)
-		if err := a.Driver.Send(processed); err != nil {
-			fmt.Printf("Adapter: Error sending message: %v\n", err)
+func (a *OneBotV11Adapter) handleMessage(d driver.Driver, msg []byte) {
+	log.Debug("OneBotV11Adapter: Received message: %s", msg)
+	go func(m []byte) {
+		if err := a.processMessage(d, m); err != nil {
+			log.Error("OneBotV11Adapter: Failed to process message", err)
 		}
 	}(msg)
 }
 
-// processMessage 模拟消息处理逻辑，可根据实际需求修改
-func (a *OneBotV11Adapter) processMessage(msg string) string {
-	processed := fmt.Sprintf("%s - processed", msg)
-	fmt.Printf("Adapter: Processed message: %s\n", processed)
-	return processed
+func (a *OneBotV11Adapter) processMessage(d driver.Driver, msg []byte) error {
+	e, err := event.JsonMsgToEvent(msg)
+	if err != nil {
+		return err
+	}
+
+	// init bot
+	if a.Bot == nil {
+		lce, ok := e.(*event.MetaEventLifeCycle)
+		if !ok {
+			return nil
+		}
+
+		dt := d.GetDriverType()
+		if (dt == driver.DriverTypeWebSocketReverse || dt == driver.DriverTypeWebSocket) && lce.SubType != event.LifeCycleSubTypeConnect {
+			log.Warn("OneBotV11Adapter: Unexpected life cycle event sub type: %s for ws driver", lce.SubType)
+			return nil
+		}
+		if dt == driver.DriverTypeHTTPPost && (lce.SubType == event.LifeCycleSubTypeEnable || lce.SubType == event.LifeCycleSubTypeDisable) {
+			log.Warn("OneBotV11Adapter: Unexpected life cycle event sub type: %s for http post driver", lce.SubType)
+			return nil
+		}
+		a.Bot = bot.NewBot(lce.SelfID)
+		log.Info("OneBotV11Adapter: Bot initialized, self ID: %s", lce.SelfID)
+		return nil
+	}
+
+	return nil
 }

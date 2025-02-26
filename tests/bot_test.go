@@ -3,20 +3,29 @@ package tests
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 
-	gmb "github.com/GreekMilkBot/GreekMilkBot"
+	"github.com/GreekMilkBot/GreekMilkBot/adapter"
 	onebotv11 "github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11"
 	"github.com/GreekMilkBot/GreekMilkBot/driver/websocket"
+	"github.com/GreekMilkBot/GreekMilkBot/gmb"
+	"github.com/GreekMilkBot/GreekMilkBot/log"
 )
 
 func TestBot(t *testing.T) {
+	log.SetLevel(zap.DebugLevel)
+
 	ctx := context.Background()
-	bot := gmb.NewBot(&gmb.Config{})
+
 	wsDriver := websocket.NewWebSocketDriver("ws://10.0.0.200:4081")
-	adapter := onebotv11.NewOneBotV11Adapter(wsDriver)
-	bot.AddAdapter(adapter)
-	err := bot.Run(ctx)
+	testBot := gmb.NewGreekMilkBot(&gmb.Config{
+		Adapters: []adapter.Adapter{onebotv11.NewOneBotV11Adapter(wsDriver)},
+	})
+
+	err := testBot.Run(ctx)
 	assert.NoError(t, err)
+	time.Sleep(30 * time.Second)
 }
