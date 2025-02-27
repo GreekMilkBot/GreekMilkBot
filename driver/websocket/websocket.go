@@ -18,9 +18,9 @@ type WebSocketDriver struct {
 	conn *websocket.Conn
 }
 
-func NewWebSocketDriver(host, token string) *WebSocketDriver {
+func NewWebSocketDriver(url, token string) *WebSocketDriver {
 	return &WebSocketDriver{
-		BaseDriver: driver.NewBaseDriver(driver.DriverTypeWebSocketReverse, host, token),
+		BaseDriver: driver.NewBaseDriver(driver.DriverTypeWebSocketReverse, url, token),
 	}
 }
 
@@ -35,7 +35,7 @@ func (d *WebSocketDriver) Connect(ctx context.Context) error {
 	if d.Token != "" {
 		header.Add("Authorization", "Bearer "+d.Token)
 	}
-	d.conn, _, err = dialer.DialContext(ctx, d.Host, header)
+	d.conn, _, err = dialer.DialContext(ctx, d.Url, header)
 	if err != nil {
 		return err
 	}

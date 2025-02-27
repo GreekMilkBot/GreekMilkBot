@@ -23,7 +23,7 @@ type Driver interface {
 
 type BaseDriver struct {
 	DriverType DriverType
-	Host       string
+	Url        string
 	Token      string
 
 	Ttl time.Duration
@@ -33,10 +33,10 @@ type BaseDriver struct {
 	ReceiveHandler func(Driver, []byte)
 }
 
-func NewBaseDriver(driverType DriverType, host, token string) *BaseDriver {
+func NewBaseDriver(driverType DriverType, url, token string) *BaseDriver {
 	return &BaseDriver{
 		DriverType:  driverType,
-		Host:        host,
+		Url:         url,
 		Token:       token,
 		Ttl:         15 * time.Second, // OneBot v11 默认心跳值
 		ReceiveChan: make(chan string),

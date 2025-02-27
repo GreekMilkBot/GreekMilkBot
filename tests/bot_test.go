@@ -18,7 +18,7 @@ func TestBot(t *testing.T) {
 	TestSetup()
 	ctx := context.Background()
 
-	wsDriver := websocket.NewWebSocketDriver(os.Getenv("ONE_BOT_HOST"), os.Getenv("ONE_BOT_TOKEN"))
+	wsDriver := websocket.NewWebSocketDriver(os.Getenv("ONE_BOT_URL"), os.Getenv("ONE_BOT_TOKEN"))
 	testBot := gmb.NewGreekMilkBot(&gmb.Config{
 		Adapters: []adapter.Adapter{onebotv11.NewOneBotV11Adapter(wsDriver)},
 	})

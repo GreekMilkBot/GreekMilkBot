@@ -44,7 +44,7 @@ func getMetaEvent(jsonData []byte) (Event, error) {
 		var e MetaEventHeartbeat
 		return e, json.Unmarshal(jsonData, &e)
 	default:
-		return event, fmt.Errorf("Invalid meta event type: %s", event.MetaEventType)
+		return event, fmt.Errorf("invalid meta event type: %s", event.MetaEventType)
 	}
 }
 
