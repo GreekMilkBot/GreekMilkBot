@@ -20,7 +20,7 @@ func TestSetup() {
 		goMod := filepath.Join(dir, "go.mod")
 		goEnv := filepath.Join(dir, ".env")
 		if data, err := os.ReadFile(goEnv); err == nil {
-			fmt.Printf("Import  test environment: %s\n", goEnv)
+			fmt.Printf("Import test environment: %s\n", goEnv)
 			for _, item := range strings.Split(string(data), "\n") {
 				item = strings.TrimSpace(item)
 				if before, after, found := strings.Cut(item, "="); found && !strings.HasPrefix(item, "#") {

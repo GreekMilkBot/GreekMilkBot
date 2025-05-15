@@ -25,5 +25,6 @@ func TestBot(t *testing.T) {
 
 	err := testBot.Run(ctx)
 	assert.NoError(t, err)
+
 	time.Sleep(30 * time.Second)
 }
