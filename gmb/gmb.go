@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/GreekMilkBot/GreekMilkBot/adapter"
 	"github.com/GreekMilkBot/GreekMilkBot/bot"
 	"github.com/GreekMilkBot/GreekMilkBot/log"
 )
@@ -40,10 +39,10 @@ func NewGreekMilkBot(config *Config) *GreekMilkBot {
 
 func (g *GreekMilkBot) Run(ctx context.Context) error {
 	bootCtx, cancel := context.WithCancel(ctx)
-	gmap := make(map[string]*adapter.Bus)
+	gmap := make(map[string]*bot.Bus)
 	for id, adapt := range g.config.Adapters {
 		pid := fmt.Sprintf("%d", id)
-		bus := adapter.NewBus(pid, bootCtx, g.rx)
+		bus := bot.NewBus(pid, bootCtx, g.rx)
 		gmap[pid] = bus
 		if err := adapt.Run(bus); err != nil {
 			cancel()
@@ -57,7 +56,7 @@ func (g *GreekMilkBot) Run(ctx context.Context) error {
 	return nil
 }
 
-func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*adapter.Bus) {
+func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*bot.Bus) {
 l:
 	for {
 		select {

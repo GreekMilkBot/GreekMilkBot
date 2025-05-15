@@ -1,4 +1,4 @@
-package adapter
+package bot
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/GreekMilkBot/GreekMilkBot/bot"
 	"github.com/GreekMilkBot/GreekMilkBot/driver"
 	"github.com/GreekMilkBot/GreekMilkBot/log"
 )
@@ -19,36 +18,36 @@ type Adapter interface {
 
 type BaseAdapter struct {
 	Driver driver.Driver
-	Bot    *bot.Bot
+	Bot    *Bot
 }
 
 type Bus struct {
 	ID string
 
-	Tx chan<- bot.Packet
-	Rx chan bot.ActionRequest
+	Tx chan<- Packet
+	Rx chan ActionRequest
 
 	context.Context
 
 	call *sync.Map
 }
 
-func NewBus(pid string, bootCtx context.Context, tx chan bot.Packet) *Bus {
+func NewBus(pid string, bootCtx context.Context, tx chan Packet) *Bus {
 	bus := Bus{
 		ID:      pid,
 		Context: bootCtx,
 		Tx:      tx,
-		Rx:      make(chan bot.ActionRequest, 100),
+		Rx:      make(chan ActionRequest, 100),
 		call:    &sync.Map{},
 	}
 	go bus.receiveLoop()
 	return &bus
 }
 
-func (b *Bus) SendMessage(message bot.Message) {
-	b.Tx <- bot.Packet{
+func (b *Bus) SendMessage(message Message) {
+	b.Tx <- Packet{
 		Plugin: b.ID,
-		Type:   bot.PacketMessage,
+		Type:   PacketMessage,
 		Data:   message,
 	}
 }
@@ -68,7 +67,7 @@ func (b *Bus) receiveLoop() {
 	}
 }
 
-func (b *Bus) exec(req bot.ActionRequest, value any) {
+func (b *Bus) exec(req ActionRequest, value any) {
 	fnValue := reflect.ValueOf(value)
 	fnType := fnValue.Type()
 	if len(req.Params) != fnType.NumIn() {
@@ -111,10 +110,10 @@ func (b *Bus) exec(req bot.ActionRequest, value any) {
 		}
 		results[i] = string(marshal)
 	}
-	b.Tx <- bot.Packet{
+	b.Tx <- Packet{
 		Plugin: b.ID,
-		Type:   bot.PacketAction,
-		Data: bot.ActionResponse{
+		Type:   PacketAction,
+		Data: ActionResponse{
 			ID:       req.ID,
 			OK:       true,
 			ErrorMsg: "",
@@ -123,12 +122,12 @@ func (b *Bus) exec(req bot.ActionRequest, value any) {
 	}
 }
 
-func (b *Bus) sendError(req bot.ActionRequest, msg error) {
+func (b *Bus) sendError(req ActionRequest, msg error) {
 	log.Error("Error: %v", msg)
-	b.Tx <- bot.Packet{
+	b.Tx <- Packet{
 		Plugin: b.ID,
-		Type:   bot.PacketAction,
-		Data: bot.ActionResponse{
+		Type:   PacketAction,
+		Data: ActionResponse{
 			ID:       req.ID,
 			OK:       false,
 			ErrorMsg: msg.Error(),

@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -27,7 +28,8 @@ func TestBot(t *testing.T) {
 	err := testBot.Run(ctx)
 	assert.NoError(t, err)
 	testBot.HandleMessageFunc(func(ctx context.Context, message bot.Message) {
-		log.Info(message.Content.String())
+		marshal, _ := json.MarshalIndent(message, "", "  ")
+		log.Info(string(marshal))
 		if strings.HasPrefix(message.Content.String(), "echo ") {
 			sendMessage, err := testBot.WithBot(ctx).SendMessage(&message, message.Content)
 			assert.NoError(t, err)

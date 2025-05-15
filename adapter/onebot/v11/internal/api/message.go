@@ -8,7 +8,7 @@ import (
 	"github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11/internal/models"
 )
 
-func (o *OneBotV11Actions) GetMsg(msgId int) (*models.CommonMessage, error) {
+func (o *OneBotV11Actions) GetMsg(msgId string) (*models.CommonMessage, error) {
 	hook, err := o.addHook("get_msg", map[string]any{
 		"message_id": msgId,
 	}, 1*time.Second)

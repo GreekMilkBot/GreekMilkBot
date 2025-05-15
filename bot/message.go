@@ -105,10 +105,6 @@ func (m *Message) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	// 临时清空 Content 字段以避免循环引用
-	originalContent := alias.Content
-	alias.Content = nil
-	defer func() { alias.Content = originalContent }()
 	return json.Marshal(alias)
 }
 

@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/GreekMilkBot/GreekMilkBot/adapter"
 	"github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11/internal/api"
 	"github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11/internal/event"
 	"github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11/internal/models"
@@ -15,20 +14,19 @@ import (
 )
 
 type OneBotV11Adapter struct {
-	adapter.BaseAdapter
-
+	bot.BaseAdapter
 	actions *api.OneBotV11Actions
 }
 
 func NewOneBotV11Adapter(driver driver.Driver) *OneBotV11Adapter {
 	return &OneBotV11Adapter{
-		BaseAdapter: adapter.BaseAdapter{
+		BaseAdapter: bot.BaseAdapter{
 			Driver: driver,
 		},
 	}
 }
 
-func (a *OneBotV11Adapter) Run(ctx *adapter.Bus) error {
+func (a *OneBotV11Adapter) Run(ctx *bot.Bus) error {
 	err := a.Driver.Connect(ctx)
 	if err != nil {
 		log.Error("OneBotV11Adapter.Run:%s", err)
@@ -44,7 +42,7 @@ func (a *OneBotV11Adapter) Run(ctx *adapter.Bus) error {
 	return nil
 }
 
-func (a *OneBotV11Adapter) handleMessage(ctx *adapter.Bus) func(d driver.Driver, msg []byte) {
+func (a *OneBotV11Adapter) handleMessage(ctx *bot.Bus) func(d driver.Driver, msg []byte) {
 	return func(d driver.Driver, msg []byte) {
 		log.Debug("OneBotV11Adapter: Received message: %s", msg)
 		go func(m []byte) {
@@ -55,7 +53,7 @@ func (a *OneBotV11Adapter) handleMessage(ctx *adapter.Bus) func(d driver.Driver,
 	}
 }
 
-func (a *OneBotV11Adapter) processMessage(ctx *adapter.Bus, d driver.Driver, msg []byte) error {
+func (a *OneBotV11Adapter) processMessage(ctx *bot.Bus, d driver.Driver, msg []byte) error {
 	e, err := event.JsonMsgToEvent(msg)
 	if err != nil {
 		return err
@@ -124,7 +122,7 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*b
 		if first := e.Message[0]; first.MsgType == "reply" {
 			e.Message = e.Message[1:]
 			if depth > 0 {
-				id := first.MsgData["id"].(int)
+				id := first.MsgData["id"].(string)
 				getMsg, err := a.actions.GetMsg(id)
 				if err != nil {
 					return nil, err
@@ -152,7 +150,7 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*b
 	return msg, nil
 }
 
-func (a *OneBotV11Adapter) bindFunc(ctx *adapter.Bus) {
+func (a *OneBotV11Adapter) bindFunc(ctx *bot.Bus) {
 	ctx.BindCall("send_private_msg", a.sendPrivateMessage)
 	ctx.BindCall("send_group_msg", a.sendGroupMessage)
 }
