@@ -1,10 +1,10 @@
 package bot
 
 type Bot struct {
-	SelfID int64
+	SelfID string
 }
 
-func NewBot(selfID int64) *Bot {
+func NewBot(selfID string) *Bot {
 	return &Bot{
 		SelfID: selfID,
 	}
