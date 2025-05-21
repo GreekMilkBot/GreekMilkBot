@@ -25,10 +25,9 @@ func NewOneBotV11Adapter(driver driver.Driver) *OneBotV11Adapter {
 func (a *OneBotV11Adapter) Run(ctx context.Context) error {
 	err := a.Driver.Connect(ctx)
 	if err != nil {
-		log.Error("OneBotV11Adapter.Run", err)
+		log.Error("OneBotV11Adapter.Run:%s", err)
 		return err
 	}
-
 	a.Driver.SetReceiveHandler(a.handleMessage)
 	return nil
 }

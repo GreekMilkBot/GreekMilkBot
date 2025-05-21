@@ -11,21 +11,22 @@ const (
 
 type MessageEvent struct {
 	BaseEvent
-	MessageType string  `json:"message_type"`
-	SubType     string  `json:"sub_type"`
-	MessageID   int     `json:"message_id"`
-	UserId      int64   `json:"user_id"`
-	Message     Message `json:"message"`
-	RawMessage  string  `json:"raw_message"`
-	Font        int     `json:"font"`
-	Sender      Sender  `json:"sender"`
+	MessageType string    `json:"message_type"`
+	SubType     string    `json:"sub_type"`
+	MessageID   int       `json:"message_id"`
+	UserId      int64     `json:"user_id"`
+	Message     []Message `json:"message"`
+	RawMessage  string    `json:"raw_message"`
+	Font        int       `json:"font"`
+	Sender      Sender    `json:"sender"`
 
 	// group only
 	GroupID   int64     `json:"group_id"`
 	Anonymous Anonymous `json:"anonymous"`
 }
 
-type Message struct{}
+type Message struct {
+}
 
 type SexType string
 

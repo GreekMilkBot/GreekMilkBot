@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -16,8 +17,8 @@ import (
 
 func TestBot(t *testing.T) {
 	TestSetup()
-	ctx := context.Background()
-
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	wsDriver := websocket.NewWebSocketDriver(os.Getenv("ONE_BOT_URL"), os.Getenv("ONE_BOT_TOKEN"))
 	testBot := gmb.NewGreekMilkBot(&gmb.Config{
 		Adapters: []adapter.Adapter{onebotv11.NewOneBotV11Adapter(wsDriver)},
@@ -25,6 +26,11 @@ func TestBot(t *testing.T) {
 
 	err := testBot.Run(ctx)
 	assert.NoError(t, err)
-
-	time.Sleep(30 * time.Second)
+	for msg := range testBot.Receive() {
+		fmt.Println(msg)
+		//todo:
+	}
+	select {
+	case <-ctx.Done():
+	}
 }

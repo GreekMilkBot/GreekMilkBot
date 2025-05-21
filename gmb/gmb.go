@@ -27,3 +27,7 @@ func (g *GreekMilkBot) Run(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (g *GreekMilkBot) Receive() chan struct{} {
+	panic("implement me")
+}
