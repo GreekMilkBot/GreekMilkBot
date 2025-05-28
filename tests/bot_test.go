@@ -2,7 +2,7 @@ package tests
 
 import (
 	"context"
-	"fmt"
+	"github.com/GreekMilkBot/GreekMilkBot/bot"
 	"os"
 	"testing"
 	"time"
@@ -23,10 +23,14 @@ func TestBot(t *testing.T) {
 
 	err := testBot.Run(ctx)
 	assert.NoError(t, err)
-	for msg := range testBot.Receive() {
-		fmt.Println(msg)
-		//todo:
-	}
+	testBot.HandleMessageFunc(func(ctx context.Context, message bot.Message) {
+
+	})
+
+	testBot.HandleEventFunc(func(ctx context.Context, message bot.Event) {
+
+	})
+
 	select {
 	case <-ctx.Done():
 	}

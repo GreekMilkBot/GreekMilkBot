@@ -1,8 +1,7 @@
 package v11
 
 import (
-	"context"
-
+	"fmt"
 	"github.com/GreekMilkBot/GreekMilkBot/adapter"
 	"github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11/event"
 	"github.com/GreekMilkBot/GreekMilkBot/bot"
@@ -22,7 +21,11 @@ func NewOneBotV11Adapter(driver driver.Driver) *OneBotV11Adapter {
 	}
 }
 
-func (a *OneBotV11Adapter) Run(ctx context.Context) error {
+func (a *OneBotV11Adapter) ID() string {
+	return fmt.Sprintf("onebot:%s", a.Bot.SelfID)
+}
+
+func (a *OneBotV11Adapter) Run(ctx adapter.Bus) error {
 	err := a.Driver.Connect(ctx)
 	if err != nil {
 		log.Error("OneBotV11Adapter.Run:%s", err)
@@ -63,7 +66,7 @@ func (a *OneBotV11Adapter) processMessage(d driver.Driver, msg []byte) error {
 			log.Warn("OneBotV11Adapter: Unexpected life cycle event sub type: %s for http post driver", lce.SubType)
 			return nil
 		}
-		a.Bot = bot.NewBot(lce.SelfID)
+		a.Bot = bot.NewBot(fmt.Sprintf("%d", lce.SelfID))
 		log.Info("OneBotV11Adapter: Bot initialized, self ID: %s", lce.SelfID)
 		return nil
 	}

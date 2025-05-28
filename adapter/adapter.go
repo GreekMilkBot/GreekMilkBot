@@ -8,7 +8,8 @@ import (
 )
 
 type Adapter interface {
-	Run(ctx context.Context) error
+	ID() string
+	Run(ctx Bus) error
 }
 
 type BaseAdapter struct {
@@ -16,4 +17,10 @@ type BaseAdapter struct {
 
 	Inited bool
 	Bot    *bot.Bot
+}
+
+type Bus struct {
+	context.Context
+
+	rx chan struct{}
 }

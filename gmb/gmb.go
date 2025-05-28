@@ -2,43 +2,81 @@ package gmb
 
 import (
 	"context"
+	"github.com/GreekMilkBot/GreekMilkBot/adapter"
+	"github.com/GreekMilkBot/GreekMilkBot/bot"
+	"github.com/GreekMilkBot/GreekMilkBot/log"
 	"sync"
-
-	"github.com/GreekMilkBot/GreekMilkBot/gmb/message"
 )
 
-type GMessage struct {
-}
+type BotMessageHandle func(ctx context.Context, message bot.Message)
+type BotEventHandle func(ctx context.Context, message bot.Event)
 
 type GreekMilkBot struct {
 	config *Config
 
-	handler *message.Handler
-	client  []chan GMessage
-	locker  *sync.RWMutex
+	rx chan Packet // 响应事件
+	tx chan Packet // 操作事件
+
+	locker      *sync.RWMutex
+	handleMsg   BotMessageHandle
+	handleEvent BotEventHandle
 }
 
 func NewGreekMilkBot(config *Config) *GreekMilkBot {
 	return &GreekMilkBot{
-		config:  config,
-		handler: message.NewHandler(),
-		locker:  new(sync.RWMutex),
-		client:  make([]chan GMessage, 0),
+		config: config,
+		locker: new(sync.RWMutex),
+
+		tx: make(chan Packet, config.Cache),
+		rx: make(chan Packet, config.Cache),
 	}
 }
 
 func (g *GreekMilkBot) Run(ctx context.Context) error {
-	for _, adapter := range g.config.Adapters {
-		if err := adapter.Run(ctx); err != nil {
+	bootCtx, cancel := context.WithCancel(ctx)
+	gmap := make(map[string]adapter.Bus)
+	for _, adapt := range g.config.Adapters {
+		bus := adapter.Bus{
+			Context: bootCtx,
+		}
+		gmap[adapt.ID()] = bus
+		if err := adapt.Run(bus); err != nil {
+			cancel()
 			return err
 		}
 	}
+	go func() {
+		defer cancel()
+		g.loop(ctx, gmap)
+	}()
 	return nil
 }
 
-func (g *GreekMilkBot) Receive() chan GMessage {
+func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]adapter.Bus) {
+	for {
+		select {
+		case <-ctx.Done():
+			log.Debug("exiting bot loop")
+			break
+		case event := <-g.rx:
+			adapt := gmap[event.plugin]
+			go func() {
+
+			}()
+		case _ = <-g.tx:
+
+		}
+	}
+}
+
+func (g *GreekMilkBot) HandleMessageFunc(f BotMessageHandle) {
 	g.locker.Lock()
 	defer g.locker.Unlock()
-	g.client = append(g.client, make(chan GMessage, g.config.Cache))
-	panic("implement me")
+	g.handleMsg = f
+}
+
+func (g *GreekMilkBot) HandleEventFunc(f BotEventHandle) {
+	g.locker.Lock()
+	defer g.locker.Unlock()
+	g.handleEvent = f
 }
