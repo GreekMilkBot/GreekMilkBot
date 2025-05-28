@@ -20,7 +20,11 @@ type BaseAdapter struct {
 }
 
 type Bus struct {
-	context.Context
+	ID string
 
-	rx chan struct{}
+	context.Context
+}
+
+func (b Bus) SendMessage(message bot.Message) error {
+
 }

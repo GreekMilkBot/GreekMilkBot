@@ -36,10 +36,12 @@ func (g *GreekMilkBot) Run(ctx context.Context) error {
 	bootCtx, cancel := context.WithCancel(ctx)
 	gmap := make(map[string]adapter.Bus)
 	for _, adapt := range g.config.Adapters {
+		id := adapt.ID()
 		bus := adapter.Bus{
+			ID:      id,
 			Context: bootCtx,
 		}
-		gmap[adapt.ID()] = bus
+		gmap[id] = bus
 		if err := adapt.Run(bus); err != nil {
 			cancel()
 			return err
