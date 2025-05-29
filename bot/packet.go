@@ -1,15 +1,16 @@
-package gmb
+package bot
 
 type PacketType string
 
 var (
 	PacketMessage = PacketType("msg") // 消息
 	PacketAction  = PacketType("act") // 控制
+
 )
 
 type Packet struct {
-	plugin string
-	pType  PacketType
+	Plugin string
+	Type   PacketType
 
-	data any
+	Data any
 }

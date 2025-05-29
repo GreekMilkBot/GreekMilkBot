@@ -2,7 +2,6 @@ package event
 
 import (
 	"encoding/json"
-
 	"github.com/GreekMilkBot/GreekMilkBot/log"
 )
 
@@ -25,17 +24,17 @@ func isValidEventType(eventType EventType) bool {
 }
 
 type Event interface {
-	GetSelfId() int64
+	GetSelfId() uint64
 	GetType() EventType
 }
 
 type BaseEvent struct {
-	Time     int64     `json:"time"`
-	SelfID   int64     `json:"self_id"`
+	SelfID   uint64    `json:"self_id"`
 	PostType EventType `json:"post_type"`
+	Echo     string    `json:"echo,omitempty"`
 }
 
-func (e BaseEvent) GetSelfId() int64 {
+func (e BaseEvent) GetSelfId() uint64 {
 	return e.SelfID
 }
 
@@ -66,6 +65,10 @@ func JsonMsgToEvent(jsonData []byte) (Event, error) {
 		var event RequestEvent
 		return event, json.Unmarshal(jsonData, &event)
 	default:
+		if base.Echo != "" {
+			var event ActionEvent
+			return event, json.Unmarshal(jsonData, &event)
+		}
 		return base, nil
 	}
 }

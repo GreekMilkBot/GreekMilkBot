@@ -2,7 +2,9 @@ package tests
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/GreekMilkBot/GreekMilkBot/bot"
+	"github.com/GreekMilkBot/GreekMilkBot/log"
 	"os"
 	"testing"
 	"time"
@@ -24,7 +26,8 @@ func TestBot(t *testing.T) {
 	err := testBot.Run(ctx)
 	assert.NoError(t, err)
 	testBot.HandleMessageFunc(func(ctx context.Context, message bot.Message) {
-
+		indent, _ := json.MarshalIndent(&message, "", "  ")
+		log.Info(string(indent))
 	})
 
 	testBot.HandleEventFunc(func(ctx context.Context, message bot.Event) {

@@ -3,8 +3,6 @@ package event
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11/api"
 )
 
 // https://github.com/botuniverse/onebot-11/blob/master/event/meta.md
@@ -61,8 +59,13 @@ type MetaEventLifeCycle struct {
 	SubType LifeCycleSubType `json:"sub_type"`
 }
 
+type OneBotStatus struct {
+	Online bool `json:"online"`
+	Good   bool `json:"good"`
+}
+
 type MetaEventHeartbeat struct {
 	MetaEvent
-	Status   api.OneBotStatus `json:"status"`
-	Interval int64            `json:"interval"`
+	Status   OneBotStatus `json:"status"`
+	Interval int64        `json:"interval"`
 }
