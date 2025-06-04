@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -26,10 +27,9 @@ func NewOneBotV11Actions(d driver.Driver) (*OneBotV11Actions, error) {
 	}, nil
 }
 
-// todo: 处理错误
 func (o *OneBotV11Actions) addHook(api string, args any, timeout time.Duration) (string, error) {
 	id := fmt.Sprintf("%s_%d", api, o.index.Add(1))
-	r := make(chan string)
+	r := make(chan ActionState)
 	o.result.Store(id, r)
 	defer func() {
 		if _, ok := o.result.LoadAndDelete(id); ok {
@@ -49,19 +49,29 @@ func (o *OneBotV11Actions) addHook(api string, args any, timeout time.Duration) 
 	}
 	select {
 	case data := <-r:
-		return data, nil
+		if data.Code == 0 {
+			return data.Data, nil
+		} else {
+			return "", errors.New(data.Message)
+		}
 	case <-time.After(timeout):
 		return "", context.DeadlineExceeded
 	}
 }
 
-func (o *OneBotV11Actions) CallPacket(id, data string) {
+type ActionState struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    string `json:"data"`
+}
+
+func (o *OneBotV11Actions) CallPacket(id string, data ActionState) {
 	value, loaded := o.result.LoadAndDelete(id)
 	if !loaded {
 		log.Warn("drop action before put %v", data)
 		return
 	}
-	c := value.(chan string)
+	c := value.(chan ActionState)
 	c <- data
 	close(c)
 }

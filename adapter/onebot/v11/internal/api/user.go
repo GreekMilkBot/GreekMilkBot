@@ -12,7 +12,7 @@ type StrangerInfo struct {
 	Age      int32  `json:"age"`
 }
 
-func (o *OneBotV11Actions) GetStrangerInfo(userID uint64) (*StrangerInfo, error) {
+func (o *OneBotV11Actions) GetStrangerInfo(userID string) (*StrangerInfo, error) {
 	hook, err := o.addHook("get_stranger_info", map[string]any{
 		"user_id": userID,
 	}, 1*time.Second)

@@ -1,9 +1,13 @@
 package v11
 
 import (
+	"encoding/base64"
 	"fmt"
+	"io"
 	"strconv"
 	"time"
+
+	"github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11/internal/utils"
 
 	"github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11/internal/api"
 	"github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11/internal/event"
@@ -78,7 +82,19 @@ func (a *OneBotV11Adapter) processMessage(ctx *bot.Bus, d driver.Driver, msg []b
 		return nil
 	}
 	if message, ok := e.(event.ActionEvent); ok {
-		a.actions.CallPacket(message.Echo, message.Data)
+		if message.Code != 0 {
+			a.actions.CallPacket(message.Echo, api.ActionState{
+				Code:    message.Code,
+				Message: message.Message,
+				Data:    "",
+			})
+		} else {
+			a.actions.CallPacket(message.Echo, api.ActionState{
+				Code:    message.Code,
+				Message: "",
+				Data:    message.Data,
+			})
+		}
 	}
 	if message, ok := e.(event.MessageEvent); ok {
 		if message.UserId == message.SelfID {
@@ -139,11 +155,50 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*b
 			case "text":
 				msg.Content = append(msg.Content, bot.ContentText{Text: message.MsgData["text"].(string)})
 			case "at":
+				var user *bot.User
 				qq := message.MsgData["qq"].(string)
 				if qq == "all" {
 					qq = "*"
+				} else {
+					var info *api.StrangerInfo
+					info, err = a.actions.GetStrangerInfo(qq)
+					if err != nil {
+						return nil, err
+					}
+					user = &bot.User{
+						Id:     fmt.Sprintf("%d", info.UserID),
+						Name:   info.Nickname,
+						Avatar: fmt.Sprintf("https://q1.qlogo.cn/g?b=qq&nk=%d&s=256", info.UserID),
+					}
 				}
-				msg.Content = append(msg.Content, bot.ContentAt{Uid: qq})
+				msg.Content = append(msg.Content, bot.ContentAt{Uid: qq, User: user})
+			case "image":
+				img := bot.ContentImage{
+					MediaType:  "",
+					DataBase64: "",
+					Summary:    "",
+				}
+				err = func(image *bot.ContentImage) error {
+					resp, err := utils.OldHttpClient.Get(message.MsgData["url"].(string))
+					if resp != nil && resp.Body != nil {
+						defer resp.Body.Close()
+					}
+					if err != nil {
+						return err
+					}
+					data, err := io.ReadAll(resp.Body)
+					if err != nil {
+						return err
+					}
+					image.MediaType = resp.Header.Get("Content-Type")
+					image.DataBase64 = base64.StdEncoding.EncodeToString(data)
+					image.Summary = message.MsgData["summary"].(string)
+					return nil
+				}(&img)
+				if err != nil {
+					return nil, err
+				}
+				msg.Content = append(msg.Content, img)
 			}
 		}
 	}
@@ -202,6 +257,14 @@ func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg bot.RA
 				MsgType: "at",
 				MsgData: map[string]interface{}{
 					"qq": u,
+				},
+			})
+		case bot.ContentImage:
+			img := content.(bot.ContentImage)
+			message = append(message, models.Message{
+				MsgType: "image",
+				MsgData: map[string]interface{}{
+					"file": fmt.Sprintf("base64://%s", img.DataBase64),
 				},
 			})
 		}

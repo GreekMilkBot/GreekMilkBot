@@ -4,8 +4,10 @@ import "encoding/json"
 
 type ActionEvent struct {
 	BaseEvent
-	Status string `json:"status"`
-	Data   string `json:"-"`
+	Status  string `json:"status"`
+	Code    int    `json:"retcode"`
+	Data    string `json:"-"`
+	Message string `json:"message"`
 }
 
 func (a *ActionEvent) UnmarshalJSON(bytes []byte) error {
