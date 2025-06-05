@@ -13,12 +13,14 @@ import (
 )
 
 type Adapter interface {
+	ID() string
 	Run(ctx *Bus) error
 }
 
 type BaseAdapter struct {
 	Driver driver.Driver
-	Bot    *Bot
+
+	Bot *Bot
 }
 
 type Bus struct {

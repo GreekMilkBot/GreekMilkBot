@@ -30,17 +30,17 @@ func NewOneBotV11Adapter(driver driver.Driver) *OneBotV11Adapter {
 	}
 }
 
+func (a *OneBotV11Adapter) ID() string {
+	return fmt.Sprintf("onebot@%s", a.Bot.SelfID)
+}
+
 func (a *OneBotV11Adapter) Run(ctx *bot.Bus) error {
 	err := a.Driver.Connect(ctx)
 	if err != nil {
 		log.Error("OneBotV11Adapter.Run:%s", err)
 		return err
 	}
-	a.actions, err = api.NewOneBotV11Actions(a.Driver)
-	if err != nil {
-		log.Error("OneBotV11Adapter.Run:%s", err)
-		return err
-	}
+	a.actions = api.NewOneBotV11Actions(a.Driver.Send)
 	a.Driver.SetReceiveHandler(a.handleMessage(ctx))
 	a.bindFunc(ctx)
 	return nil

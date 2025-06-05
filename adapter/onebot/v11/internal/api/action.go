@@ -9,22 +9,21 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/GreekMilkBot/GreekMilkBot/driver"
 	"github.com/GreekMilkBot/GreekMilkBot/log"
 )
 
 type OneBotV11Actions struct {
-	driver driver.Driver
+	sender func(string) error
 	result sync.Map
 	index  atomic.Uint64
 }
 
-func NewOneBotV11Actions(d driver.Driver) (*OneBotV11Actions, error) {
+func NewOneBotV11Actions(sender func(string) error) *OneBotV11Actions {
 	return &OneBotV11Actions{
-		driver: d,
+		sender: sender,
 		result: sync.Map{},
 		index:  atomic.Uint64{},
-	}, nil
+	}
 }
 
 func (o *OneBotV11Actions) addHook(api string, args any, timeout time.Duration) (string, error) {
@@ -44,7 +43,7 @@ func (o *OneBotV11Actions) addHook(api string, args any, timeout time.Duration) 
 	if err != nil {
 		return "", err
 	}
-	if err = o.driver.Send(string(req)); err != nil {
+	if err = o.sender(string(req)); err != nil {
 		return "", err
 	}
 	select {
