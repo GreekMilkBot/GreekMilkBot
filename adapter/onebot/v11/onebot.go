@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11/internal/utils"
@@ -24,29 +25,17 @@ type OneBotV11Adapter struct {
 
 func NewOneBotV11Adapter(driver driver.Driver) *OneBotV11Adapter {
 	return &OneBotV11Adapter{
-		BaseAdapter: bot.BaseAdapter{
-			Driver: driver,
-		},
+		BaseAdapter: bot.NewBaseAdapter(driver),
 	}
 }
 
-func (a *OneBotV11Adapter) ID() string {
-	return fmt.Sprintf("onebot@%s", a.Bot.SelfID)
-}
-
-func (a *OneBotV11Adapter) Run(ctx *bot.Bus) error {
-	err := a.Driver.Connect(ctx)
-	if err != nil {
-		log.Error("OneBotV11Adapter.Run:%s", err)
-		return err
-	}
+func (a *OneBotV11Adapter) Run(ctx *bot.Bus) (string, error) {
 	a.actions = api.NewOneBotV11Actions(a.Driver.Send)
-	a.Driver.SetReceiveHandler(a.handleMessage(ctx))
 	a.bindFunc(ctx)
-	return nil
+	return a.Driver.Connect(ctx, a.handleMessage(ctx))
 }
 
-func (a *OneBotV11Adapter) handleMessage(ctx *bot.Bus) func(d driver.Driver, msg []byte) {
+func (a *OneBotV11Adapter) handleMessage(ctx *bot.Bus) driver.Handler {
 	return func(d driver.Driver, msg []byte) {
 		log.Debug("OneBotV11Adapter: Received message: %s", msg)
 		go func(m []byte) {
@@ -206,8 +195,8 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*b
 }
 
 func (a *OneBotV11Adapter) bindFunc(ctx *bot.Bus) {
-	ctx.BindCall("send_private_msg", a.sendPrivateMessage)
-	ctx.BindCall("send_group_msg", a.sendGroupMessage)
+	ctx.CallFunc("send_private_msg", a.sendPrivateMessage)
+	ctx.CallFunc("send_group_msg", a.sendGroupMessage)
 }
 
 func (a *OneBotV11Adapter) sendPrivateMessage(userId string, msg bot.RAWContents) (string, error) {

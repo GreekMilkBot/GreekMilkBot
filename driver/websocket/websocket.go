@@ -24,7 +24,7 @@ func NewWebSocketDriver(url, token string) *WebSocketDriver {
 	}
 }
 
-func (d *WebSocketDriver) Connect(ctx context.Context) error {
+func (d *WebSocketDriver) Connect(ctx context.Context, handler driver.Handler) error {
 	if d.conn != nil {
 		return nil
 	}
@@ -39,13 +39,11 @@ func (d *WebSocketDriver) Connect(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	go d.receive(ctx)
-
+	go d.receive(ctx, handler)
 	return nil
 }
 
-func (d *WebSocketDriver) receive(ctx context.Context) {
+func (d *WebSocketDriver) receive(ctx context.Context, handler driver.Handler) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -54,7 +52,6 @@ func (d *WebSocketDriver) receive(ctx context.Context) {
 			return
 		default:
 		}
-
 		if d.Ttl > 0 {
 			// set read timeout, avoid blocking
 			_ = d.conn.SetReadDeadline(time.Now().Add(d.Ttl))
@@ -64,8 +61,8 @@ func (d *WebSocketDriver) receive(ctx context.Context) {
 			fmt.Println("WebSocketDriver: ReadMessage error", err)
 			return
 		}
-		if messageType == websocket.TextMessage && d.ReceiveHandler != nil {
-			d.ReceiveHandler(d, message)
+		if messageType == websocket.TextMessage {
+			handler(d, message)
 		}
 	}
 }

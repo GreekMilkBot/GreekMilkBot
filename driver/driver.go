@@ -14,11 +14,12 @@ const (
 	DriverTypeWebSocketReverse
 )
 
+type Handler func(driver Driver, msg []byte)
+
 type Driver interface {
 	GetDriverType() DriverType
-	Connect(ctx context.Context) error
+	Connect(ctx context.Context, handler Handler) error
 	Send(msg string) error
-	SetReceiveHandler(handler func(driver Driver, msg []byte))
 }
 
 type BaseDriver struct {
@@ -28,9 +29,8 @@ type BaseDriver struct {
 
 	Ttl time.Duration
 
-	ReceiveChan    chan string
-	QuitChan       chan struct{}
-	ReceiveHandler func(Driver, []byte)
+	ReceiveChan chan string
+	QuitChan    chan struct{}
 }
 
 func NewBaseDriver(driverType DriverType, url, token string) *BaseDriver {
@@ -48,6 +48,7 @@ func (d *BaseDriver) GetDriverType() DriverType {
 	return d.DriverType
 }
 
-func (d *BaseDriver) SetReceiveHandler(handler func(driver Driver, msg []byte)) {
-	d.ReceiveHandler = handler
+type DriverPacket struct {
+	ID   string
+	Data string
 }

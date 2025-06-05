@@ -13,14 +13,20 @@ import (
 )
 
 type Adapter interface {
-	ID() string
-	Run(ctx *Bus) error
+	Run(ctx *Bus) (string, error)
 }
 
 type BaseAdapter struct {
 	Driver driver.Driver
+	Booted *sync.WaitGroup
+	Bot    *Bot
+}
 
-	Bot *Bot
+func NewBaseAdapter(driver driver.Driver) BaseAdapter {
+	return BaseAdapter{
+		Driver: driver,
+		Booted: new(sync.WaitGroup),
+	}
 }
 
 type Bus struct {
@@ -34,10 +40,9 @@ type Bus struct {
 	call *sync.Map
 }
 
-func NewBus(pid string, bootCtx context.Context, tx chan Packet) *Bus {
+func NewBus(ctx context.Context, tx chan Packet) *Bus {
 	bus := Bus{
-		ID:      pid,
-		Context: bootCtx,
+		Context: ctx,
 		Tx:      tx,
 		Rx:      make(chan ActionRequest, 100),
 		call:    &sync.Map{},
@@ -138,7 +143,7 @@ func (b *Bus) sendError(req ActionRequest, msg error) {
 	}
 }
 
-func (b *Bus) BindCall(name string, f any) {
+func (b *Bus) CallFunc(name string, f any) {
 	if f == nil || name == "" {
 		panic("name or func must not be nil")
 	}

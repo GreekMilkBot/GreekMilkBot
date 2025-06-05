@@ -2,7 +2,6 @@ package gmb
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -40,14 +39,15 @@ func NewGreekMilkBot(config *Config) *GreekMilkBot {
 func (g *GreekMilkBot) Run(ctx context.Context) error {
 	bootCtx, cancel := context.WithCancel(ctx)
 	gmap := make(map[string]*bot.Bus)
-	for id, adapt := range g.config.Adapters {
-		pid := fmt.Sprintf("%d", id)
-		bus := bot.NewBus(pid, bootCtx, g.rx)
-		gmap[pid] = bus
-		if err := adapt.Run(bus); err != nil {
+	for _, adapt := range g.config.Adapters {
+		bus := bot.NewBus(bootCtx, g.rx)
+		id, err := adapt.Run(bus)
+		if err != nil {
 			cancel()
 			return err
 		}
+		bus.ID = id
+		gmap[id] = bus
 	}
 	go func() {
 		defer cancel()
