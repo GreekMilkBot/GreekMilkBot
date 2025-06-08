@@ -2,6 +2,11 @@ package gmb
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"math/rand"
+	"reflect"
 	"sync"
 	"time"
 
@@ -10,8 +15,10 @@ import (
 )
 
 type (
-	BotMessageHandle func(ctx context.Context, message bot.Message)
-	BotEventHandle   func(ctx context.Context, message bot.Event)
+	BotMessageHandle func(ctx context.Context, id string, message bot.Message)
+	BotEventHandle   func(ctx context.Context, id string, event bot.Event)
+
+	ClientCallHandle func(pluginID string, key string, params []any, result []any, timeout time.Duration) error
 )
 
 type GreekMilkBot struct {
@@ -27,53 +34,45 @@ type GreekMilkBot struct {
 }
 
 func NewGreekMilkBot(config *Config) *GreekMilkBot {
-	return &GreekMilkBot{
+	init := &GreekMilkBot{
 		config: config,
 		call:   new(sync.Map),
 
 		tx: make(chan bot.Packet, config.Cache),
 		rx: make(chan bot.Packet, config.Cache),
 	}
+	return init
 }
 
 func (g *GreekMilkBot) Run(ctx context.Context) error {
 	bootCtx, cancel := context.WithCancel(ctx)
-	gmap := make(map[string]*bot.Bus)
-	for _, adapt := range g.config.Adapters {
-		bus := bot.NewBus(bootCtx, g.rx)
-		id, err := adapt.Run(bus)
-		if err != nil {
-			cancel()
-			return err
+	defer cancel()
+	adapters := make(map[string]*bot.Bus)
+	for gid, adapt := range g.config.Adapters {
+		bus := bot.NewBus(fmt.Sprintf("%d", gid), bootCtx, g.rx)
+		adapters[bus.ID] = bus
+		if err := adapt.Bind(bus); err != nil {
+			return errors.Join(err, errors.New(fmt.Sprintf("plugin #%d Error.", gid)))
 		}
-		bus.ID = id
-		gmap[id] = bus
 	}
-	go func() {
-		defer cancel()
-		g.loop(ctx, gmap)
-	}()
-	return nil
+	return g.loop(ctx, adapters)
 }
 
-func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*bot.Bus) {
-l:
+func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*bot.Bus) error {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Debug("exiting bot loop")
-			break l
+			return nil
 		case event := <-g.rx:
 			stat := gmap[event.Plugin]
-			ctx := context.WithValue(ctx, "gbot-plugin-id", stat.ID)
 			go func() {
 				switch event.Type {
 				case bot.PacketMessage:
-					go g.handleMsg(ctx, event.Data.(bot.Message))
+					go g.handleMsg(ctx, stat.ID, event.Data.(bot.Message))
 				case bot.PacketAction:
 					switch event.Data.(type) {
 					case bot.Event:
-						go g.handleEvent(ctx, event.Data.(bot.Event))
+						go g.handleEvent(ctx, stat.ID, event.Data.(bot.Event))
 					case bot.ActionResponse:
 						resp := event.Data.(bot.ActionResponse)
 						if value, loaded := g.call.LoadAndDelete(resp.ID); loaded {
@@ -110,17 +109,49 @@ func (g *GreekMilkBot) HandleEventFunc(f BotEventHandle) {
 	g.handleEvent = f
 }
 
-func (g *GreekMilkBot) WithBot(ctx context.Context) *ClientBus {
-	if id, ok := ctx.Value("gbot-plugin-id").(string); ok {
-		return g.WithBotID(id)
+func (g *GreekMilkBot) ClientCall(pluginID string, key string, params []any, result []any, timeout time.Duration) error {
+	id := fmt.Sprintf("%s-%s-%d-%.2f", pluginID, key, time.Now().Unix(), rand.Float64())
+	for _, item := range result {
+		paramType := reflect.TypeOf(item)
+		if paramType.Kind() != reflect.Ptr {
+			return fmt.Errorf("result must be a pointer")
+		}
+	}
+	paramsRaw := make([]string, len(params))
+	for i, param := range params {
+		f, err := json.Marshal(param)
+		if err != nil {
+			return err
+		}
+		paramsRaw[i] = string(f)
+	}
+	resultChan := make(chan bot.ActionResponse)
+	g.call.Store(id, resultChan)
+	g.tx <- bot.Packet{
+		Plugin: pluginID,
+		Type:   bot.PacketAction,
+		Data: bot.ActionRequest{
+			ID:     id,
+			Action: key,
+			Params: paramsRaw,
+		},
+	}
+	select {
+	case res := <-resultChan:
+		if res.OK {
+			for i, item := range result {
+				if err := json.Unmarshal([]byte(res.Data[i]), item); err != nil {
+					return err
+				}
+			}
+		} else {
+			return errors.New(res.ErrorMsg)
+		}
+	case <-time.After(timeout):
+		if value, loaded := g.call.LoadAndDelete(id); loaded {
+			close(value.(chan bot.ActionResponse))
+		}
+		return context.DeadlineExceeded
 	}
 	return nil
-}
-
-func (g *GreekMilkBot) WithBotID(id string) *ClientBus {
-	return &ClientBus{
-		pluginID: id,
-		tx:       g.tx,
-		call:     g.call,
-	}
 }

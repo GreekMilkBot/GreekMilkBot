@@ -18,24 +18,52 @@ type (
 	RAWContents []RawContent
 )
 
-func (contents Contents) String() string {
-	var data []string
-	for _, content := range contents {
-		data = append(data, content.String())
+func (contents *Contents) UnmarshalJSON(bytes []byte) error {
+	var raw RAWContents
+	err := json.Unmarshal(bytes, &raw)
+	if err != nil {
+		return err
 	}
-	return strings.Join(data, "")
+	result := make(Contents, 0, len(raw))
+	for _, content := range raw {
+		r := covertMap[content.Type]
+		if r == nil {
+			result = append(result,
+				ContentUnknown{
+					Type:  content.Type,
+					Value: content.Data,
+				})
+			continue
+		}
+		i := reflect.New(r).Interface()
+		if err := json.Unmarshal([]byte(content.Data), i); err != nil {
+			return err
+		}
+		result = append(result, reflect.ValueOf(i).Elem().Interface().(Content))
+	}
+	*contents = result
+	return nil
 }
 
-func (contents Contents) ToRAWContents() (RAWContents, error) {
-	result := make(RAWContents, 0, len(contents))
-	for _, content := range contents {
+func (contents *Contents) MarshalJSON() ([]byte, error) {
+	result := make(RAWContents, 0, len(*contents))
+	for _, content := range *contents {
 		t := reflect.TypeOf(content)
 		if t.Kind() == reflect.Ptr {
 			t = t.Elem()
 		}
 		s := covertMapR[t]
 		if s == "" {
-			return nil, fmt.Errorf("unknown type %T", content)
+			switch content.(type) {
+			case ContentUnknown:
+				result = append(result, RawContent{
+					Type: content.(ContentUnknown).Type,
+					Data: content.(ContentUnknown).Value,
+				})
+				continue
+			default:
+				return nil, fmt.Errorf("unknown type %T", content)
+			}
 		}
 		data, err := json.Marshal(content)
 		if err != nil {
@@ -46,23 +74,15 @@ func (contents Contents) ToRAWContents() (RAWContents, error) {
 			Data: string(data),
 		})
 	}
-	return result, nil
+	return json.Marshal(result)
 }
 
-func (contents RAWContents) ToContents() (Contents, error) {
-	result := make(Contents, 0, len(contents))
-	for _, content := range contents {
-		r := covertMap[content.Type]
-		if r == nil {
-			return nil, fmt.Errorf("unknown content type: %s", content.Type)
-		}
-		i := reflect.New(r).Interface()
-		if err := json.Unmarshal([]byte(content.Data), i); err != nil {
-			return nil, err
-		}
-		result = append(result, reflect.ValueOf(i).Elem().Interface().(Content))
+func (contents *Contents) String() string {
+	var data []string
+	for _, content := range *contents {
+		data = append(data, content.String())
 	}
-	return result, nil
+	return strings.Join(data, "")
 }
 
 type Content interface {
@@ -75,37 +95,10 @@ type Message struct {
 	MsgType string `json:"type"`
 	Guild   *Guild `json:"guild"`
 
-	Quote      *Message    `json:"quote,omitempty"`
-	Content    Contents    `json:"-"`
-	RawContent RAWContents `json:"content"`
-	Created    time.Time   `json:"created"`
-	Updated    time.Time   `json:"updated"`
-}
-
-func (m *Message) UnmarshalJSON(bytes []byte) error {
-	type Alias Message
-	var alias Alias
-	var err error
-	if err := json.Unmarshal(bytes, &alias); err != nil {
-		return err
-	}
-	alias.Content, err = alias.RawContent.ToContents()
-	if err != nil {
-		return err
-	}
-	*m = Message(alias)
-	return nil
-}
-
-func (m *Message) MarshalJSON() ([]byte, error) {
-	type Alias Message
-	alias := (*Alias)(m)
-	var err error
-	alias.RawContent, err = m.Content.ToRAWContents()
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(alias)
+	Quote   *Message  `json:"quote,omitempty"`
+	Content Contents  `json:"content"`
+	Created time.Time `json:"created"`
+	Updated time.Time `json:"updated"`
 }
 
 type RawContent struct {
@@ -154,6 +147,15 @@ type ContentImage struct {
 
 func (c ContentImage) String() string {
 	return fmt.Sprintf("image[summary=%s,blob]", c.Summary)
+}
+
+type ContentUnknown struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
+
+func (c ContentUnknown) String() string {
+	return fmt.Sprintf("unknown[type=%s]", c.Type)
 }
 
 func init() {

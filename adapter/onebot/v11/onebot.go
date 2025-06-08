@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11/internal/utils"
@@ -29,7 +28,7 @@ func NewOneBotV11Adapter(driver driver.Driver) *OneBotV11Adapter {
 	}
 }
 
-func (a *OneBotV11Adapter) Run(ctx *bot.Bus) (string, error) {
+func (a *OneBotV11Adapter) Bind(ctx *bot.Bus) error {
 	a.actions = api.NewOneBotV11Actions(a.Driver.Send)
 	a.bindFunc(ctx)
 	return a.Driver.Connect(ctx, a.handleMessage(ctx))
@@ -108,6 +107,7 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*b
 			Name:   e.Sender.Nickname,
 			Avatar: fmt.Sprintf("https://q1.qlogo.cn/g?b=qq&nk=%d&s=256", e.Sender.UserId),
 		},
+		Content: make(bot.Contents, 0),
 		Guild:   nil,
 		Quote:   nil,
 		Created: time.Unix(e.Time, 0),
@@ -188,6 +188,8 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*b
 					return nil, err
 				}
 				msg.Content = append(msg.Content, img)
+			case "face":
+				msg.Content = append(msg.Content, bot.ContentUnknown{Type: "qq_face", Value: message.MsgData["id"].(string)})
 			}
 		}
 	}
@@ -199,15 +201,15 @@ func (a *OneBotV11Adapter) bindFunc(ctx *bot.Bus) {
 	ctx.CallFunc("send_group_msg", a.sendGroupMessage)
 }
 
-func (a *OneBotV11Adapter) sendPrivateMessage(userId string, msg bot.RAWContents) (string, error) {
+func (a *OneBotV11Adapter) sendPrivateMessage(userId string, msg bot.Contents) (string, error) {
 	return a.sendMessage(userId, "", msg)
 }
 
-func (a *OneBotV11Adapter) sendGroupMessage(groupID string, msg bot.RAWContents) (string, error) {
+func (a *OneBotV11Adapter) sendGroupMessage(groupID string, msg bot.Contents) (string, error) {
 	return a.sendMessage("", groupID, msg)
 }
 
-func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg bot.RAWContents) (string, error) {
+func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg bot.Contents) (string, error) {
 	var uid, gid uint64
 	if userId != "" {
 		i, err := strconv.ParseInt(userId, 10, 64)
@@ -224,11 +226,7 @@ func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg bot.RA
 		gid = uint64(i)
 	}
 	message := make([]models.Message, 0)
-	contents, err := msg.ToContents()
-	if err != nil {
-		return "", err
-	}
-	for _, content := range contents {
+	for _, content := range msg {
 		switch content.(type) {
 		case bot.ContentText:
 			message = append(message, models.Message{

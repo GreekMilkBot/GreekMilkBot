@@ -13,7 +13,7 @@ import (
 )
 
 type Adapter interface {
-	Run(ctx *Bus) (string, error)
+	Bind(ctx *Bus) error
 }
 
 type BaseAdapter struct {
@@ -40,8 +40,9 @@ type Bus struct {
 	call *sync.Map
 }
 
-func NewBus(ctx context.Context, tx chan Packet) *Bus {
+func NewBus(id string, ctx context.Context, tx chan Packet) *Bus {
 	bus := Bus{
+		ID:      id,
 		Context: ctx,
 		Tx:      tx,
 		Rx:      make(chan ActionRequest, 100),
@@ -60,6 +61,7 @@ func (b *Bus) SendMessage(message Message) {
 }
 
 func (b *Bus) receiveLoop() {
+	defer close(b.Rx)
 	for {
 		select {
 		case <-b.Context.Done():
