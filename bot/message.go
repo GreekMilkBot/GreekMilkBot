@@ -45,9 +45,9 @@ func (contents *Contents) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-func (contents Contents) MarshalJSON() ([]byte, error) {
-	result := make(RAWContents, 0, len(contents))
-	for _, content := range contents {
+func (contents *Contents) MarshalJSON() ([]byte, error) {
+	result := make(RAWContents, 0, len(*contents))
+	for _, content := range *contents {
 		t := reflect.TypeOf(content)
 		if t.Kind() == reflect.Ptr {
 			t = t.Elem()

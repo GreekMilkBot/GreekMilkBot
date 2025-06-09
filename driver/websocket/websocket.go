@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -69,7 +70,7 @@ func (d *WebSocketDriver) receive(ctx context.Context, handler driver.Handler) {
 
 func (d *WebSocketDriver) Send(msg string) error {
 	if d.conn == nil {
-		return fmt.Errorf("WebSocket connection is not established")
+		return errors.New("WebSocket connection is not established")
 	}
 
 	return d.conn.WriteMessage(websocket.TextMessage, []byte(msg))

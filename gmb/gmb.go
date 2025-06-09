@@ -114,7 +114,7 @@ func (g *GreekMilkBot) ClientCall(pluginID string, key string, params []any, res
 	for _, item := range result {
 		paramType := reflect.TypeOf(item)
 		if paramType.Kind() != reflect.Ptr {
-			return fmt.Errorf("result must be a pointer")
+			return errors.New("result must be a pointer")
 		}
 	}
 	paramsRaw := make([]string, len(params))

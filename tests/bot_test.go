@@ -25,11 +25,11 @@ func TestBot(t *testing.T) {
 	wsDriver := websocket.NewWebSocketDriver(os.Getenv("ONE_BOT_URL"), os.Getenv("ONE_BOT_TOKEN"))
 	testBot := gmb.NewGreekMilkBot(gmb.NewConfig(onebotv11.NewOneBotV11Adapter(wsDriver)))
 	testBot.HandleMessageFunc(func(ctx context.Context, id string, message bot.Message) {
-		marshal, _ := json.MarshalIndent(message, "", "  ")
+		marshal, _ := json.MarshalIndent(&message, "", "  ")
 		log.Info(string(marshal))
 		if strings.HasPrefix(message.Content.String(), "echo ") {
 
-			sendMessage, err := gmb.NewClientBus(id, testBot.ClientCall).SendMessage(&message, message.Content)
+			sendMessage, err := gmb.NewClientBus(id, testBot.ClientCall).SendMessage(&message, &message.Content)
 			assert.NoError(t, err)
 			log.Info(sendMessage)
 		}

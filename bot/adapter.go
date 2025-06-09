@@ -45,6 +45,7 @@ func (b *Bus) SendMessage(message Message) {
 		Data:   message,
 	}
 }
+
 func (b *Bus) SendEvent(event Event) {
 	b.tx <- Packet{
 		Plugin: b.ID,
@@ -108,7 +109,7 @@ func (b *Bus) exec(req ActionRequest, value any) {
 	results := make([]string, len(call))
 	for i, v := range call {
 		if v.Type().Implements(errorType) && !v.IsNil() {
-			b.sendError(req, fmt.Errorf(v.Interface().(error).Error()))
+			b.sendError(req, v.Interface().(error))
 			return
 		}
 		marshal, err := json.Marshal(v.Interface())

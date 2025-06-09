@@ -177,15 +177,15 @@ func (a *OneBotV11Adapter) bindFunc(ctx *bot.Bus) {
 	ctx.CallFunc("send_group_msg", a.sendGroupMessage)
 }
 
-func (a *OneBotV11Adapter) sendPrivateMessage(userId string, msg bot.Contents) (string, error) {
+func (a *OneBotV11Adapter) sendPrivateMessage(userId string, msg *bot.Contents) (string, error) {
 	return a.sendMessage(userId, "", msg)
 }
 
-func (a *OneBotV11Adapter) sendGroupMessage(groupID string, msg bot.Contents) (string, error) {
+func (a *OneBotV11Adapter) sendGroupMessage(groupID string, msg *bot.Contents) (string, error) {
 	return a.sendMessage("", groupID, msg)
 }
 
-func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg bot.Contents) (string, error) {
+func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg *bot.Contents) (string, error) {
 	var uid, gid uint64
 	if userId != "" {
 		i, err := strconv.ParseInt(userId, 10, 64)
@@ -202,7 +202,7 @@ func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg bot.Co
 		gid = uint64(i)
 	}
 	message := make([]models.Message, 0)
-	for _, content := range msg {
+	for _, content := range *msg {
 		switch content.(type) {
 		case bot.ContentText:
 			message = append(message, models.Message{
