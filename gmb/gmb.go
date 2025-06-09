@@ -93,7 +93,7 @@ func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*bot.Bus) error
 			stat := gmap[event.Plugin]
 			switch event.Type {
 			case bot.PacketAction:
-				stat.Rx <- event.Data.(bot.ActionRequest)
+				stat.NewRequest(event.Data.(bot.ActionRequest))
 			default:
 				log.Error("unknown event type %s (or not support this type)", event.Type)
 			}

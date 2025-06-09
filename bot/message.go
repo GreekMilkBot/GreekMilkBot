@@ -45,9 +45,9 @@ func (contents *Contents) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-func (contents *Contents) MarshalJSON() ([]byte, error) {
-	result := make(RAWContents, 0, len(*contents))
-	for _, content := range *contents {
+func (contents Contents) MarshalJSON() ([]byte, error) {
+	result := make(RAWContents, 0, len(contents))
+	for _, content := range contents {
 		t := reflect.TypeOf(content)
 		if t.Kind() == reflect.Ptr {
 			t = t.Elem()
@@ -140,9 +140,8 @@ func (c ContentAt) String() string {
 }
 
 type ContentImage struct {
-	MediaType  string `json:"media_type"`
-	DataBase64 string `json:"data"`
-	Summary    string `json:"summary"`
+	URL     string `json:"url"`
+	Summary string `json:"summary"`
 }
 
 func (c ContentImage) String() string {

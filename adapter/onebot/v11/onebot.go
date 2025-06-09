@@ -1,13 +1,9 @@
 package v11
 
 import (
-	"encoding/base64"
 	"fmt"
-	"io"
 	"strconv"
 	"time"
-
-	"github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11/internal/utils"
 
 	"github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11/internal/api"
 	"github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11/internal/event"
@@ -18,45 +14,47 @@ import (
 )
 
 type OneBotV11Adapter struct {
-	bot.BaseAdapter
+	driver  driver.Driver
 	actions *api.OneBotV11Actions
+
+	selfId string
 }
 
 func NewOneBotV11Adapter(driver driver.Driver) *OneBotV11Adapter {
 	return &OneBotV11Adapter{
-		BaseAdapter: bot.NewBaseAdapter(driver),
+		driver: driver,
 	}
 }
 
 func (a *OneBotV11Adapter) Bind(ctx *bot.Bus) error {
-	a.actions = api.NewOneBotV11Actions(a.Driver.Send)
+	a.actions = api.NewOneBotV11Actions(a.driver.Send)
 	a.bindFunc(ctx)
-	return a.Driver.Connect(ctx, a.handleMessage(ctx))
+	return a.driver.Connect(ctx, a.handleMessage(ctx))
 }
 
 func (a *OneBotV11Adapter) handleMessage(ctx *bot.Bus) driver.Handler {
 	return func(d driver.Driver, msg []byte) {
 		log.Debug("OneBotV11Adapter: Received message: %s", msg)
 		go func(m []byte) {
-			if err := a.processMessage(ctx, d, m); err != nil {
+			if err := a.processMessage(ctx, m); err != nil {
 				log.Error("OneBotV11Adapter: Failed to process message: %s", err)
 			}
 		}(msg)
 	}
 }
 
-func (a *OneBotV11Adapter) processMessage(ctx *bot.Bus, d driver.Driver, msg []byte) error {
+func (a *OneBotV11Adapter) processMessage(ctx *bot.Bus, msg []byte) error {
 	e, err := event.JsonMsgToEvent(msg)
 	if err != nil {
 		return err
 	}
 	// init bot
-	if a.Bot == nil {
+	if a.selfId == "" {
 		lce, ok := e.(event.MetaEventLifeCycle)
 		if !ok {
 			return nil
 		}
-		dt := d.GetDriverType()
+		dt := a.driver.GetDriverType()
 		if (dt == driver.DriverTypeWebSocketReverse || dt == driver.DriverTypeWebSocket) && lce.SubType != event.LifeCycleSubTypeConnect {
 			log.Warn("OneBotV11Adapter: Unexpected life cycle event sub type: %s for ws driver", lce.SubType)
 			return nil
@@ -65,7 +63,7 @@ func (a *OneBotV11Adapter) processMessage(ctx *bot.Bus, d driver.Driver, msg []b
 			log.Warn("OneBotV11Adapter: Unexpected life cycle event sub type: %s for http post driver", lce.SubType)
 			return nil
 		}
-		a.Bot = bot.NewBot(fmt.Sprintf("%d", lce.SelfID))
+		a.selfId = fmt.Sprintf("%d", lce.SelfID)
 		log.Info("OneBotV11Adapter: Bot initialized, self ID: %d", lce.SelfID)
 		return nil
 	}
@@ -162,32 +160,10 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*b
 				}
 				msg.Content = append(msg.Content, bot.ContentAt{Uid: qq, User: user})
 			case "image":
-				img := bot.ContentImage{
-					MediaType:  "",
-					DataBase64: "",
-					Summary:    "",
-				}
-				err = func(image *bot.ContentImage) error {
-					resp, err := utils.OldHttpClient.Get(message.MsgData["url"].(string))
-					if resp != nil && resp.Body != nil {
-						defer resp.Body.Close()
-					}
-					if err != nil {
-						return err
-					}
-					data, err := io.ReadAll(resp.Body)
-					if err != nil {
-						return err
-					}
-					image.MediaType = resp.Header.Get("Content-Type")
-					image.DataBase64 = base64.StdEncoding.EncodeToString(data)
-					image.Summary = message.MsgData["summary"].(string)
-					return nil
-				}(&img)
-				if err != nil {
-					return nil, err
-				}
-				msg.Content = append(msg.Content, img)
+				msg.Content = append(msg.Content, bot.ContentImage{
+					URL:     message.MsgData["url"].(string),
+					Summary: message.MsgData["summary"].(string),
+				})
 			case "face":
 				msg.Content = append(msg.Content, bot.ContentUnknown{Type: "qq_face", Value: message.MsgData["id"].(string)})
 			}
@@ -251,7 +227,7 @@ func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg bot.Co
 			message = append(message, models.Message{
 				MsgType: "image",
 				MsgData: map[string]interface{}{
-					"file": fmt.Sprintf("base64://%s", img.DataBase64),
+					"file": img.URL,
 				},
 			})
 		}

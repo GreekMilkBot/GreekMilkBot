@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/GreekMilkBot/GreekMilkBot/driver"
 	"github.com/GreekMilkBot/GreekMilkBot/log"
 )
 
@@ -16,24 +15,11 @@ type Adapter interface {
 	Bind(ctx *Bus) error
 }
 
-type BaseAdapter struct {
-	Driver driver.Driver
-	Booted *sync.WaitGroup
-	Bot    *Bot
-}
-
-func NewBaseAdapter(driver driver.Driver) BaseAdapter {
-	return BaseAdapter{
-		Driver: driver,
-		Booted: new(sync.WaitGroup),
-	}
-}
-
 type Bus struct {
 	ID string
 
-	Tx chan<- Packet
-	Rx chan ActionRequest
+	tx chan<- Packet
+	rx chan ActionRequest
 
 	context.Context
 
@@ -44,8 +30,8 @@ func NewBus(id string, ctx context.Context, tx chan Packet) *Bus {
 	bus := Bus{
 		ID:      id,
 		Context: ctx,
-		Tx:      tx,
-		Rx:      make(chan ActionRequest, 100),
+		tx:      tx,
+		rx:      make(chan ActionRequest, 100),
 		call:    &sync.Map{},
 	}
 	go bus.receiveLoop()
@@ -53,20 +39,32 @@ func NewBus(id string, ctx context.Context, tx chan Packet) *Bus {
 }
 
 func (b *Bus) SendMessage(message Message) {
-	b.Tx <- Packet{
+	b.tx <- Packet{
 		Plugin: b.ID,
 		Type:   PacketMessage,
 		Data:   message,
 	}
 }
+func (b *Bus) SendEvent(event Event) {
+	b.tx <- Packet{
+		Plugin: b.ID,
+		Type:   PacketAction,
+		Data:   event,
+	}
+}
+
+func (b *Bus) NewRequest(req ActionRequest) {
+	b.rx <- req
+}
 
 func (b *Bus) receiveLoop() {
-	defer close(b.Rx)
+	defer b.call.Clear()
+	defer close(b.rx)
 	for {
 		select {
 		case <-b.Context.Done():
 			return
-		case req := <-b.Rx:
+		case req := <-b.rx:
 			if value, ok := b.call.Load(req.Action); ok {
 				go b.exec(req, value)
 			} else {
@@ -119,7 +117,7 @@ func (b *Bus) exec(req ActionRequest, value any) {
 		}
 		results[i] = string(marshal)
 	}
-	b.Tx <- Packet{
+	b.tx <- Packet{
 		Plugin: b.ID,
 		Type:   PacketAction,
 		Data: ActionResponse{
@@ -133,7 +131,7 @@ func (b *Bus) exec(req ActionRequest, value any) {
 
 func (b *Bus) sendError(req ActionRequest, msg error) {
 	log.Error("Error: %v", msg)
-	b.Tx <- Packet{
+	b.tx <- Packet{
 		Plugin: b.ID,
 		Type:   PacketAction,
 		Data: ActionResponse{
