@@ -1,4 +1,4 @@
-package tests
+package common
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func TestSetup() {
+func init() {
 	log.SetLevel(zap.DebugLevel)
 	dir, err := os.Getwd()
 	if err != nil {
@@ -20,7 +20,7 @@ func TestSetup() {
 		goMod := filepath.Join(dir, "go.mod")
 		goEnv := filepath.Join(dir, ".env")
 		if data, err := os.ReadFile(goEnv); err == nil {
-			fmt.Printf("Import  test environment: %s\n", goEnv)
+			fmt.Printf("Import test environment: %s\n", goEnv)
 			for _, item := range strings.Split(string(data), "\n") {
 				item = strings.TrimSpace(item)
 				if before, after, found := strings.Cut(item, "="); found && !strings.HasPrefix(item, "#") {
