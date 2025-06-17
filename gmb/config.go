@@ -1,6 +1,8 @@
 package gmb
 
 import (
+	"slices"
+
 	"github.com/GreekMilkBot/GreekMilkBot/bot"
 )
 
@@ -9,9 +11,22 @@ type Config struct {
 	Cache    int
 }
 
-func NewConfig(adapters ...bot.Adapter) *Config {
+func DefaultConfig() *Config {
 	return &Config{
-		Adapters: adapters,
+		Adapters: make([]bot.Adapter, 0),
 		Cache:    100,
+	}
+}
+
+type GreekMilkBotConfig func(*Config) error
+
+func WithAdapters(adapters ...bot.Adapter) GreekMilkBotConfig {
+	return func(config *Config) error {
+		for _, adapter := range adapters {
+			if adapter != nil && !slices.Contains(config.Adapters, adapter) {
+				config.Adapters = append(config.Adapters, adapter)
+			}
+		}
+		return nil
 	}
 }

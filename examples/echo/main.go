@@ -7,9 +7,7 @@ import (
 	"strings"
 	"time"
 
-	onebotv11 "github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11"
 	"github.com/GreekMilkBot/GreekMilkBot/bot"
-	"github.com/GreekMilkBot/GreekMilkBot/driver"
 	"github.com/GreekMilkBot/GreekMilkBot/gmb"
 	"github.com/GreekMilkBot/GreekMilkBot/log"
 	_ "github.com/GreekMilkBot/GreekMilkBot/tests/common"
@@ -19,11 +17,14 @@ import (
 func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	testBot := gmb.NewGreekMilkBot(gmb.NewConfig(onebotv11.NewOneBotV11Adapter(
-		driver.NewWebSocketDriver(ctx, os.Getenv("ONE_BOT_URL"), os.Getenv("ONE_BOT_TOKEN"), false))))
+	testBot, err := gmb.NewGreekMilkBot(
+		gmb.WithAdapterURL(ctx, os.Getenv("TEST_BOT_URL")))
+	if err != nil {
+		panic(err)
+	}
 	testBot.HandleMessageFunc(func(ctx context.Context, id string, message bot.Message) {
 		marshal, _ := json.MarshalIndent(&message, "", "  ")
-		log.Info(string(marshal))
+		log.Infof(string(marshal))
 		if strings.HasPrefix(message.Content.String(), "echo ") {
 			contents := message.Content
 			for i, content := range contents {
@@ -35,9 +36,9 @@ func main() {
 			}
 			sendMessage, err := gmb.NewClientBus(id, testBot.ClientCall).SendMessage(&message, &contents)
 			if err != nil {
-				log.Error("send message error", zap.Error(err))
+				log.Errorf("send message error", zap.Error(err))
 			}
-			log.Info(sendMessage)
+			log.Infof(sendMessage)
 		}
 	})
 	testBot.HandleEventFunc(func(ctx context.Context, id string, event bot.Event) {

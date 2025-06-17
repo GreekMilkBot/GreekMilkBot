@@ -142,7 +142,7 @@ func (b *Bus) exec(req ActionRequest, value any) {
 }
 
 func (b *Bus) sendError(req ActionRequest, msg error) {
-	log.Error("Error: %v", msg)
+	log.Errorf("Error: %v", msg)
 	b.tx <- Packet{
 		Plugin: b.ID,
 		Type:   PacketAction,

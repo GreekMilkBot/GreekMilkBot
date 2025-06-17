@@ -91,22 +91,22 @@ func SetLevel(level zapcore.Level) {
 	defaultAtomicLevel.SetLevel(level)
 }
 
-func Debug(format string, values ...any) {
+func Debugf(format string, values ...any) {
 	GetLogger(DEFAULT).Sugar().Debugf(format, values...)
 }
 
-func Info(format string, values ...any) {
+func Infof(format string, values ...any) {
 	GetLogger(DEFAULT).Sugar().Infof(format, values...)
 }
 
-func Warn(format string, values ...any) {
+func Warnf(format string, values ...any) {
 	GetLogger(DEFAULT).Sugar().Warnf(format, values...)
 }
 
-func Error(format string, values ...any) {
+func Errorf(format string, values ...any) {
 	GetLogger(DEFAULT).Sugar().Errorf(format, values...)
 }
 
-func Fatal(format string, values ...any) {
+func Fatalf(format string, values ...any) {
 	GetLogger(DEFAULT).Sugar().Fatalf(format, values...)
 }

@@ -24,10 +24,10 @@ type (
 type GreekMilkBot struct {
 	config *Config
 
-	rx chan bot.Packet // 响应事件
-	tx chan bot.Packet // 操作事件
+	rx chan bot.Packet
+	tx chan bot.Packet
 
-	call *sync.Map // 事件回调
+	call *sync.Map
 
 	meta *sync.Map
 
@@ -35,15 +35,21 @@ type GreekMilkBot struct {
 	handleEvent BotEventHandle
 }
 
-func NewGreekMilkBot(config *Config) *GreekMilkBot {
+func NewGreekMilkBot(calls ...GreekMilkBotConfig) (*GreekMilkBot, error) {
+	config := DefaultConfig()
+	for _, call := range calls {
+		if err := call(config); err != nil {
+			return nil, err
+		}
+	}
 	init := &GreekMilkBot{
 		config: config,
 		call:   new(sync.Map),
-		meta:   &sync.Map{},
+		meta:   new(sync.Map),
 		tx:     make(chan bot.Packet, config.Cache),
 		rx:     make(chan bot.Packet, config.Cache),
 	}
-	return init
+	return init, nil
 }
 
 func (g *GreekMilkBot) Run(ctx context.Context) error {
@@ -54,7 +60,7 @@ func (g *GreekMilkBot) Run(ctx context.Context) error {
 		bus := bot.NewBus(fmt.Sprintf("%d", gid), bootCtx, g.rx)
 		adapters[bus.ID] = bus
 		if err := adapt.Bind(bus); err != nil {
-			return errors.Join(err, errors.New(fmt.Sprintf("plugin #%d Error.", gid)))
+			return errors.Join(err, errors.New(fmt.Sprintf("plugin #%d Errorf.", gid)))
 		}
 	}
 	return g.loop(ctx, adapters)
@@ -93,11 +99,11 @@ func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*bot.Bus) error
 							select {
 							case vChan <- resp:
 							case <-time.After(10 * time.Millisecond):
-								log.Warn("timed out waiting for action response %s to channel", resp.ID)
+								log.Warnf("timed out waiting for action response %s to channel", resp.ID)
 							}
 							close(vChan)
 						} else {
-							log.Warn("timed out waiting for action response %s", resp.ID)
+							log.Warnf("timed out waiting for action response %s", resp.ID)
 						}
 					}
 				}
@@ -108,7 +114,7 @@ func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*bot.Bus) error
 			case bot.PacketAction:
 				stat.NewRequest(event.Data.(bot.ActionRequest))
 			default:
-				log.Error("unknown event type %s (or not support this type)", event.Type)
+				log.Errorf("unknown event type %s (or not support this type)", event.Type)
 			}
 		}
 	}

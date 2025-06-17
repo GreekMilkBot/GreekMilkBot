@@ -41,7 +41,7 @@ func (e BaseEvent) GetSelfId() uint64 {
 
 func (e BaseEvent) GetType() EventType {
 	if !isValidEventType(e.PostType) {
-		log.Error("Invalid event type: %s", e.PostType)
+		log.Errorf("Invalid event type: %s", e.PostType)
 		return ""
 	}
 	return e.PostType

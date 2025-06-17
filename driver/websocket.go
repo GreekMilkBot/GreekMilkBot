@@ -3,15 +3,17 @@ package driver
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"sync/atomic"
 	"time"
+
+	"github.com/GreekMilkBot/GreekMilkBot/log"
 
 	"github.com/gorilla/websocket"
 )
 
 // TODO: 支持断线重连
+
 type WebSocketDriver struct {
 	Url   string
 	Token string
@@ -23,6 +25,7 @@ type WebSocketDriver struct {
 }
 
 func NewWebSocketDriver(context context.Context, url string, token string, retry bool) *WebSocketDriver {
+	log.Debugf("NewWebSocketDriver: %s", url)
 	return &WebSocketDriver{
 		ctx:   context,
 		Url:   url,
@@ -70,7 +73,7 @@ l:
 		}
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
-			fmt.Println("WebSocketDriver: ReadMessage error", err)
+			log.Errorf("WebSocketDriver: ReadMessage error", err)
 			return
 		}
 		if messageType == websocket.TextMessage {

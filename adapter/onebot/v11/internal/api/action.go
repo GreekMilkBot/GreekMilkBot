@@ -67,7 +67,7 @@ type ActionState struct {
 func (o *OneBotV11Actions) CallPacket(id string, data ActionState) {
 	value, loaded := o.result.LoadAndDelete(id)
 	if !loaded {
-		log.Warn("drop action before put %v", data)
+		log.Warnf("drop action before put %v", data)
 		return
 	}
 	c := value.(chan ActionState)

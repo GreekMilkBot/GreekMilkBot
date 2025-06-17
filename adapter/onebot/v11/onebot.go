@@ -1,11 +1,15 @@
 package v11
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"github.com/GreekMilkBot/GreekMilkBot/gmb"
 
 	"github.com/GreekMilkBot/GreekMilkBot/driver"
 
@@ -15,6 +19,19 @@ import (
 	"github.com/GreekMilkBot/GreekMilkBot/bot"
 	"github.com/GreekMilkBot/GreekMilkBot/log"
 )
+
+func init() {
+	gmb.RegisterAdapter("onebot11", func(ctx context.Context, url url.URL) (bot.Adapter, error) {
+		if url.Scheme != "ws" && url.Scheme != "wss" {
+			return nil, errors.New("unsupported scheme :" + url.Scheme)
+		}
+		token := url.Query().Get("token")
+		retry := url.Query().Get("retry") == "true"
+		return NewOneBotV11Adapter(
+			driver.NewWebSocketDriver(ctx, fmt.Sprintf("%s://%s%s", url.Scheme, url.Host, url.Path),
+				token, retry)), nil
+	})
+}
 
 type OneBotV11Adapter struct {
 	actions *api.OneBotV11Actions
@@ -40,10 +57,10 @@ func (a *OneBotV11Adapter) Bind(ctx *bot.Bus) error {
 	ctx.CallFunc("send_private_msg", a.sendPrivateMessage)
 	ctx.CallFunc("send_group_msg", a.sendGroupMessage)
 	return a.driver.Bind(func(msg []byte) {
-		log.Debug("OneBotV11Adapter: Received message: %s", msg)
+		log.Debugf("OneBotV11Adapter: Received message: %s", msg)
 		go func(m []byte) {
 			if err := a.processMessage(ctx, m); err != nil {
-				log.Error("OneBotV11Adapter: Failed to process message: %s", err)
+				log.Errorf("OneBotV11Adapter: Failed to process message: %s", err)
 			}
 		}(msg)
 	})
@@ -61,7 +78,7 @@ func (a *OneBotV11Adapter) processMessage(ctx *bot.Bus, msg []byte) error {
 			return nil
 		}
 		a.selfId.Store(lce.SelfID)
-		log.Info("OneBotV11Adapter: Bot initialized, self ID: %d", lce.SelfID)
+		log.Infof("OneBotV11Adapter: Bot initialized, self ID: %d", lce.SelfID)
 		ctx.SendMeta("id", fmt.Sprintf("%d", lce.SelfID))
 		return nil
 	}
@@ -82,12 +99,12 @@ func (a *OneBotV11Adapter) processMessage(ctx *bot.Bus, msg []byte) error {
 	}
 	if message, ok := e.(event.MessageEvent); ok {
 		if message.UserId == message.SelfID {
-			log.Debug("OneBotV11Adapter: skip self message: %s", message)
+			log.Debugf("OneBotV11Adapter: skip self message: %s", message)
 			return nil
 		}
 		cMsg, err := a.covertMessage(&message.CommonMessage, 5)
 		if err != nil {
-			log.Error("OneBotV11Adapter: Failed to covertMessage: %s", err)
+			log.Errorf("OneBotV11Adapter: Failed to covertMessage: %s", err)
 			return nil
 		}
 		ctx.SendMessage(*cMsg)
