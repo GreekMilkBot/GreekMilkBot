@@ -36,7 +36,7 @@ func main() {
 			}
 			sendMessage, err := gmb.NewClientBus(id, testBot.ClientCall).SendMessage(&message, &contents)
 			if err != nil {
-				log.Errorf("send message error", zap.Error(err))
+				log.Errorf("send message error %v", zap.Error(err))
 			}
 			log.Infof(sendMessage)
 		}
