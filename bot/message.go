@@ -54,15 +54,15 @@ func (contents *Contents) MarshalJSON() ([]byte, error) {
 		}
 		s := covertMapR[t]
 		if s == "" {
-			switch content.(type) {
+			switch typedContent := content.(type) {
 			case ContentUnknown:
 				result = append(result, RawContent{
-					Type: content.(ContentUnknown).Type,
-					Data: content.(ContentUnknown).Value,
+					Type: typedContent.Type,
+					Data: typedContent.Value,
 				})
 				continue
 			default:
-				return nil, fmt.Errorf("unknown type %T", content)
+				return nil, fmt.Errorf("unknown type %T", typedContent)
 			}
 		}
 		data, err := json.Marshal(content)

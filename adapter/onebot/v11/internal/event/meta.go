@@ -14,7 +14,7 @@ const (
 	MetaEventTypeHeartbeat MetaEventType = "heartbeat"
 )
 
-func IsVaildMetaEventType(t MetaEventType) bool {
+func IsValidMetaEventType(t MetaEventType) bool {
 	switch t {
 	case MetaEventTypeLifeCycle, MetaEventTypeHeartbeat:
 		return true

@@ -99,7 +99,7 @@ func (a *OneBotV11Adapter) processMessage(ctx *bot.Bus, msg []byte) error {
 	}
 	if message, ok := e.(event.MessageEvent); ok {
 		if message.UserId == message.SelfID {
-			log.Debugf("OneBotV11Adapter: skip self message: %s", message)
+			log.Debugf("OneBotV11Adapter: skip self message: %v", message)
 			return nil
 		}
 		cMsg, err := a.covertMessage(&message.CommonMessage, 5)
@@ -213,16 +213,16 @@ func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg *bot.C
 	}
 	message := make([]models.Message, 0)
 	for _, content := range *msg {
-		switch content.(type) {
+		switch content := content.(type) {
 		case bot.ContentText:
 			message = append(message, models.Message{
 				MsgType: "text",
 				MsgData: map[string]interface{}{
-					"text": content.(bot.ContentText).Text,
+					"text": content.Text,
 				},
 			})
 		case bot.ContentAt:
-			u := content.(bot.ContentAt).Uid
+			u := content.Uid
 			if u == "*" {
 				u = "all"
 			}
@@ -233,7 +233,7 @@ func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg *bot.C
 				},
 			})
 		case bot.ContentImage:
-			img := content.(bot.ContentImage)
+			img := content
 			message = append(message, models.Message{
 				MsgType: "image",
 				MsgData: map[string]interface{}{

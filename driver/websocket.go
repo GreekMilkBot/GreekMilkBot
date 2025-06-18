@@ -50,7 +50,7 @@ func (d *WebSocketDriver) Bind(handler Handler) error {
 		return err
 	}
 	if !d.conn.CompareAndSwap(nil, conn) {
-		conn.Close()
+		_ = conn.Close()
 		return errors.New("WebSocketDriver already connected")
 	}
 	go d.receive(conn, handler)
@@ -58,7 +58,9 @@ func (d *WebSocketDriver) Bind(handler Handler) error {
 }
 
 func (d *WebSocketDriver) receive(conn *websocket.Conn, handler Handler) {
-	defer conn.Close()
+	defer func(conn *websocket.Conn) {
+		_ = conn.Close()
+	}(conn)
 	defer d.conn.Store(nil)
 l:
 	for {
@@ -73,7 +75,7 @@ l:
 		}
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Errorf("WebSocketDriver: ReadMessage error", err)
+			log.Errorf("WebSocketDriver: ReadMessage error %s", err)
 			return
 		}
 		if messageType == websocket.TextMessage {

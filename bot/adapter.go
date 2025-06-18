@@ -74,7 +74,7 @@ func (b *Bus) receiveLoop() {
 	defer close(b.rx)
 	for {
 		select {
-		case <-b.Context.Done():
+		case <-b.Done():
 			return
 		case req := <-b.rx:
 			if value, ok := b.call.Load(req.Action); ok {

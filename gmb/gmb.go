@@ -60,7 +60,7 @@ func (g *GreekMilkBot) Run(ctx context.Context) error {
 		bus := bot.NewBus(fmt.Sprintf("%d", gid), bootCtx, g.rx)
 		adapters[bus.ID] = bus
 		if err := adapt.Bind(bus); err != nil {
-			return errors.Join(err, errors.New(fmt.Sprintf("plugin #%d Errorf.", gid)))
+			return errors.Join(err, fmt.Errorf("plugin #%d Errorf", gid))
 		}
 	}
 	return g.loop(ctx, adapters)
