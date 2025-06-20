@@ -2,9 +2,11 @@ package v11
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
+	"reflect"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -20,7 +22,18 @@ import (
 	"github.com/GreekMilkBot/GreekMilkBot/log"
 )
 
+type OneBotCustomContent struct {
+	Type string         `json:"type"`
+	Data map[string]any `json:"data"`
+}
+
+func (o OneBotCustomContent) String() string {
+	marshal, _ := json.Marshal(&o)
+	return string(marshal)
+}
+
 func init() {
+	bot.RegisterContent("onebot11_custom", reflect.TypeOf((*OneBotCustomContent)(nil)))
 	gmb.RegisterAdapter("onebot11", func(ctx context.Context, url url.URL) (bot.Adapter, error) {
 		if url.Scheme != "ws" && url.Scheme != "wss" {
 			return nil, errors.New("unsupported scheme :" + url.Scheme)
@@ -155,6 +168,14 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*b
 		for _, message := range e.Message {
 			switch message.MsgType {
 			case "text":
+				last := len(msg.Content) - 1
+				if last >= 0 {
+					if f, ok := msg.Content[last].(bot.ContentText); ok {
+						f.Text = f.Text + message.MsgData["text"].(string)
+						msg.Content[last] = f
+						continue
+					}
+				}
 				msg.Content = append(msg.Content, bot.ContentText{Text: message.MsgData["text"].(string)})
 			case "at":
 				var user *bot.User
@@ -179,8 +200,12 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*b
 					URL:     message.MsgData["url"].(string),
 					Summary: message.MsgData["summary"].(string),
 				})
-			case "face":
-				msg.Content = append(msg.Content, bot.ContentUnknown{Type: "qq_face", Value: message.MsgData["id"].(string)})
+			default:
+				rawMsg, _ := json.Marshal(message.MsgData)
+				msg.Content = append(msg.Content, bot.ContentUnknown{
+					Type:  fmt.Sprintf("onebot11_%s", message.MsgType),
+					Value: string(rawMsg),
+				})
 			}
 		}
 	}
@@ -215,12 +240,19 @@ func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg *bot.C
 	for _, content := range *msg {
 		switch content := content.(type) {
 		case bot.ContentText:
-			message = append(message, models.Message{
-				MsgType: "text",
-				MsgData: map[string]interface{}{
-					"text": content.Text,
-				},
-			})
+			last := len(message) - 1
+			if last > 0 && message[last].MsgType == "text" {
+				m := message[last]
+				m.MsgData["text"] = message[last].MsgData["text"].(string) + content.Text
+				message[last] = m
+			} else {
+				message = append(message, models.Message{
+					MsgType: "text",
+					MsgData: map[string]interface{}{
+						"text": content.Text,
+					},
+				})
+			}
 		case bot.ContentAt:
 			u := content.Uid
 			if u == "*" {
@@ -239,6 +271,11 @@ func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg *bot.C
 				MsgData: map[string]interface{}{
 					"file": img.URL,
 				},
+			})
+		case OneBotCustomContent:
+			message = append(message, models.Message{
+				MsgType: content.Type,
+				MsgData: content.Data,
 			})
 		}
 	}
