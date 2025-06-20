@@ -60,6 +60,8 @@ func main() {
 		}
 	})
 	testBot.HandleEventFunc(func(ctx context.Context, id string, event bot.Event) {
+		content, _ := json.Marshal(event.Data)
+		log.Infof("receive event[%v]: %s", event.Type, content)
 	})
 	if err := testBot.Run(ctx); err != nil {
 		panic(err)

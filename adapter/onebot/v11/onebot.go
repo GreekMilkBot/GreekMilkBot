@@ -122,6 +122,12 @@ func (a *OneBotV11Adapter) processMessage(ctx *bot.Bus, msg []byte) error {
 		}
 		ctx.SendMessage(*cMsg)
 	}
+	if e, ok := e.(event.NoticeEvent); ok {
+		ctx.SendEvent(bot.Event{
+			Type: fmt.Sprintf("onebot11_%s", e.GetNoticeType()),
+			Data: e,
+		})
+	}
 	return nil
 }
 

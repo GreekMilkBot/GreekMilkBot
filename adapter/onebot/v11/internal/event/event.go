@@ -32,7 +32,8 @@ type Event interface {
 type BaseEvent struct {
 	SelfID   uint64    `json:"self_id"`
 	PostType EventType `json:"post_type"`
-	Echo     string    `json:"echo,omitempty"`
+
+	Echo string `json:"echo,omitempty"`
 }
 
 func (e BaseEvent) GetSelfId() uint64 {
