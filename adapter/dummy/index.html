@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 会话列表区域 */
+        .chat-list {
+            width: 300px;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .chat-list-header {
+            padding: 16px;
+            border-bottom: 1px solid #e0e0e0;
+            background-color: #f8f9fa;
+        }
+
+        .chat-list-header h2 {
+            font-size: 20px;
+            font-weight: 500;
+        }
+
+
+        .chat-search input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .chat-items {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .chat-item {
+            display: flex;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e0e0e0;
+            cursor: pointer;
+        }
+
+        .chat-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .chat-item.active {
+            background-color: #e8f0fe;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #ddd;
+            margin-right: 12px;
+            overflow: hidden;
+        }
+
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .chat-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .chat-info-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .chat-name {
+            font-size: 16px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-time {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .chat-message {
+            font-size: 14px;
+            color: #555;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 聊天区域 */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .chat-header {
+            padding: 16px;
+            border-bottom: 1px solid #e0e0e0;
+            background-color: #f8f9fa;
+            display: flex;
+            align-items: center;
+        }
+
+        .back-button {
+            display: none;
+            margin-right: 12px;
+            cursor: pointer;
+        }
+
+        .current-chat-name {
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            max-width: 80%;
+            margin-bottom: 16px;
+            display: flex;
+        }
+
+        .message.sent {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message.received {
+            align-self: flex-start;
+        }
+
+        .message-group {
+            margin-right: 10px;
+        }
+
+        .message-group .message-time {
+            align-self: flex-end;
+        }
+
+        .message-content {
+            padding: 10px 14px;
+            border-radius: 18px;
+            font-size: 14px;
+        }
+
+        .message.sent .message-content {
+            background-color: #007aff;
+            color: white;
+            border-bottom-right-radius: 2px;
+        }
+
+        .message.received .message-content {
+            background-color: #f1f0f0;
+            color: #333;
+            border-bottom-left-radius: 2px;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #888;
+            margin: 8px 8px;
+            align-self: flex-end;
+        }
+
+        .message.sent .message-time {
+            text-align: right;
+        }
+
+        .message.received .message-time {
+            text-align: left;
+        }
+
+        .chat-input-area {
+            padding: 12px 16px;
+            border-top: 1px solid #e0e0e0;
+            background-color: #f8f9fa;
+        }
+
+        .chat-input-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-right: 12px;
+            resize: none;
+            height: 40px;
+        }
+
+        .send-button {
+            background-color: #007aff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .chat-list {
+                width: 100%;
+                display: none;
+            }
+
+            .chat-list.active {
+                display: flex;
+            }
+
+            .chat-container {
+                width: 100%;
+            }
+
+            .chat-container.hidden {
+                display: none;
+            }
+
+            .back-button {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- 会话列表区域 -->
+<div class="chat-list" id="chatList">
+    <div class="chat-list-header">
+        <h2>会话列表</h2>
+    </div>
+    <div class="chat-items">
+        <div class="chat-item active" data-chat-id="1">
+            <div class="avatar">
+                <img src="https://picsum.photos/200/200?random=1" alt="用户头像">
+            </div>
+            <div class="chat-info">
+                <div class="chat-info-header">
+                    <div class="chat-name">张三</div>
+                    <div class="chat-time">12:30</div>
+                </div>
+                <div class="chat-message">今天下午开会讨论项目进展</div>
+            </div>
+        </div>
+        <div class="chat-item" data-chat-id="2">
+            <div class="avatar">
+                <img src="https://picsum.photos/200/200?random=2" alt="用户头像">
+            </div>
+            <div class="chat-info">
+                <div class="chat-info-header">
+                    <div class="chat-name">李四</div>
+                    <div class="chat-time">昨天</div>
+                </div>
+                <div class="chat-message">好的，我稍后回复你</div>
+            </div>
+        </div>
+        <div class="chat-item" data-chat-id="3">
+            <div class="avatar">
+                <img src="https://picsum.photos/200/200?random=3" alt="用户头像">
+            </div>
+            <div class="chat-info">
+                <div class="chat-info-header">
+                    <div class="chat-name">产品部群聊</div>
+                    <div class="chat-time">周一</div>
+                </div>
+                <div class="chat-message">王五: 大家看一下新的需求文档</div>
+            </div>
+        </div>
+        <div class="chat-item" data-chat-id="4">
+            <div class="avatar">
+                <img src="https://picsum.photos/200/200?random=4" alt="用户头像">
+            </div>
+            <div class="chat-info">
+                <div class="chat-info-header">
+                    <div class="chat-name">赵六</div>
+                    <div class="chat-time">上周</div>
+                </div>
+                <div class="chat-message">周末一起去打球吗？</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 聊天区域 -->
+<div class="chat-container" id="chatContainer">
+    <div class="chat-header">
+        <div class="back-button" id="backButton">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15 19L9 12L15 5" stroke="#333" stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round"></path>
+            </svg>
+        </div>
+        <div class="current-chat-name" id="currentChatName">张三</div>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+        <div class="message received">
+            <div class="avatar">
+                <img src="https://picsum.photos/200/200?random=1" alt="用户头像">
+            </div>
+            <div class="message-content">你好，今天下午开会讨论项目进展</div>
+            <div class="message-time">12:30</div>
+        </div>
+        <div class="message sent">
+            <div class="message-time">12:32</div>
+            <div class="message-content">好的，我准备好了相关资料</div>
+            <div class="avatar">
+                <img src="https://picsum.photos/200/200?random=5" alt="我的头像">
+            </div>
+        </div>
+        <div class="message received">
+            <div class="avatar">
+                <img src="https://picsum.photos/200/200?random=1" alt="用户头像">
+            </div>
+            <div class="message-content">太好了，我们3点在会议室见</div>
+            <div class="message-time">12:35</div>
+        </div>
+    </div>
+    <div class="chat-input-area">
+        <div class="chat-input-container">
+            <textarea class="chat-input" placeholder="输入消息..." id="chatInput"></textarea>
+            <button class="send-button" id="sendButton">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2 2L22 12L2 22V2Z" fill="white"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 获取DOM元素
+    const chatItems = document.querySelectorAll('.chat-item');
+    const currentChatName = document.getElementById('currentChatName');
+    const chatMessages = document.getElementById('chatMessages');
+    const chatInput = document.getElementById('chatInput');
+    const sendButton = document.getElementById('sendButton');
+    const chatList = document.getElementById('chatList');
+    const chatContainer = document.getElementById('chatContainer');
+    const backButton = document.getElementById('backButton');
+
+    // 聊天数据
+    const chatData = {
+        1: [
+            {
+                sender: 'received',
+                content: '你好，今天下午开会讨论项目进展',
+                time: '12:30',
+                avatar: 'https://picsum.photos/200/200?random=1'
+            },
+            {
+                sender: 'sent',
+                content: '好的，我准备好了相关资料',
+                time: '12:32',
+                avatar: 'https://picsum.photos/200/200?random=5'
+            },
+            {
+                sender: 'received',
+                content: '太好了，我们3点在会议室见',
+                time: '12:35',
+                avatar: 'https://picsum.photos/200/200?random=1'
+            }
+        ],
+        2: [
+            {
+                sender: 'received',
+                content: '你好，项目文档准备好了吗？',
+                time: '昨天 15:20',
+                avatar: 'https://picsum.photos/200/200?random=2'
+            },
+            {
+                sender: 'sent',
+                content: '还在整理中，稍后发给你',
+                time: '昨天 15:30',
+                avatar: 'https://picsum.photos/200/200?random=5'
+            },
+            {
+                sender: 'received',
+                content: '好的，我稍后回复你',
+                time: '昨天 16:00',
+                avatar: 'https://picsum.photos/200/200?random=2'
+            }
+        ],
+        3: [
+            {
+                sender: 'received',
+                content: '大家看一下新的需求文档',
+                time: '周一 10:00',
+                avatar: 'https://picsum.photos/200/200?random=3'
+            },
+            {
+                sender: 'received',
+                content: '我觉得我们需要调整一下开发计划',
+                time: '周一 10:15',
+                avatar: 'https://picsum.photos/200/200?random=6'
+            },
+            {
+                sender: 'sent',
+                content: '同意，我稍后提交一个新的计划',
+                time: '周一 10:30',
+                avatar: 'https://picsum.photos/200/200?random=5'
+            }
+        ],
+        4: [
+            {
+                sender: 'received',
+                content: '周末一起去打球吗？',
+                time: '上周 18:00',
+                avatar: 'https://picsum.photos/200/200?random=4'
+            },
+            {
+                sender: 'sent',
+                content: '好的，我周六有时间',
+                time: '上周 18:30',
+                avatar: 'https://picsum.photos/200/200?random=5'
+            },
+            {
+                sender: 'received',
+                content: '那我们周六下午3点老地方见',
+                time: '上周 19:00',
+                avatar: 'https://picsum.photos/200/200?random=4'
+            }
+        ]
+    };
+
+    // 切换会话
+    chatItems.forEach(item => {
+        item.addEventListener('click', () => {
+            // 移除所有会话的选中状态
+            chatItems.forEach(i => i.classList.remove('active'));
+            // 添加当前会话的选中状态
+            item.classList.add('active');
+
+            // 获取会话ID和名称
+            const chatId = item.getAttribute('data-chat-id');
+            // 更新当前聊天名称
+            currentChatName.textContent = item.querySelector('.chat-name').textContent;
+
+            // 更新聊天消息
+            updateChatMessages(chatId);
+
+            // 在移动设备上切换到聊天区域
+            if (window.innerWidth < 768) {
+                chatList.classList.remove('active');
+                chatContainer.classList.remove('hidden');
+            }
+        });
+    });
+
+    // 更新聊天消息
+    function updateChatMessages(chatId) {
+        // 清空当前消息
+        chatMessages.innerHTML = '';
+
+        // 获取对应会话的消息
+        const messages = chatData[chatId] || [];
+
+        // 添加消息到聊天区域
+        messages.forEach(msg => {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${msg.sender}`;
+
+
+            messageDiv.innerHTML = `
+                <div class="avatar"><img src="${msg.avatar}" alt="用户头像"></div>
+                <div class="message-group">
+                <div class="message-content">${msg.content}</div>
+                <div class="message-time">${msg.time}</div>
+</div>
+                `;
+
+            chatMessages.appendChild(messageDiv);
+        });
+
+        // 滚动到底部
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // 发送消息
+    function sendMessage() {
+        const messageContent = chatInput.value.trim();
+        if (messageContent === '') return;
+
+        // 获取当前聊天ID
+        let currentChatId = null;
+        chatItems.forEach(item => {
+            if (item.classList.contains('active')) {
+                currentChatId = item.getAttribute('data-chat-id');
+            }
+        });
+
+        if (!currentChatId) return;
+
+        // 获取当前时间
+        const now = new Date();
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const timeString = `${hours}:${minutes}`;
+
+        // 创建新消息
+        const newMessage = {
+            sender: 'sent',
+            content: messageContent,
+            time: timeString,
+            avatar: 'https://picsum.photos/200/200?random=5'
+        };
+
+        // 添加到聊天数据
+        if (!chatData[currentChatId]) {
+            chatData[currentChatId] = [];
+        }
+        chatData[currentChatId].push(newMessage);
+
+        // 更新UI
+        updateChatMessages(currentChatId);
+
+        // 清空输入框
+        chatInput.value = '';
+
+        // 更新会话列表中的最后一条消息
+        const activeChatItem = document.querySelector(`.chat-item[data-chat-id="${currentChatId}"]`);
+        if (activeChatItem) {
+            const messageElement = activeChatItem.querySelector('.chat-message');
+            if (messageElement) {
+                messageElement.textContent = messageContent;
+            }
+            const timeElement = activeChatItem.querySelector('.chat-time');
+            if (timeElement) {
+                timeElement.textContent = timeString;
+            }
+        }
+    }
+
+    // 绑定发送消息事件
+    sendButton.addEventListener('click', sendMessage);
+
+    // 按Enter发送消息
+    chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    // 移动设备上的返回按钮
+    backButton.addEventListener('click', () => {
+        if (window.innerWidth < 768) {
+            chatList.classList.add('active');
+            chatContainer.classList.add('hidden');
+        }
+    });
+
+    // 初始化页面加载时的聊天内容
+    document.addEventListener('DOMContentLoaded', () => {
+        // 默认加载第一个会话的消息
+        if (chatItems.length > 0) {
+            chatItems[0].click();
+        }
+
+        // 检查屏幕尺寸，在移动设备上默认隐藏聊天区域
+        if (window.innerWidth < 768) {
+            chatList.classList.add('active');
+            chatContainer.classList.add('hidden');
+        }
+    });
+
+    // 窗口大小改变时调整布局
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 768) {
+            chatList.classList.remove('active');
+            chatContainer.classList.remove('hidden');
+        } else if (!chatContainer.classList.contains('hidden')) {
+            chatList.classList.remove('active');
+        } else {
+            chatList.classList.add('active');
+        }
+    });
+</script>
+</body>
+</html>
