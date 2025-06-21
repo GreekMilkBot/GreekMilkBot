@@ -98,74 +98,137 @@ const meta = {
 let messages = {
     '20001': [
         {
+            id: "900001",
             sender: '10001',
-            content: '你好，今天下午开会讨论项目进展',
+            content: {
+                message: parseMessage('你好，今天下午开会讨论项目进展')
+            },
             time: '2024-01-01 11:30:30',
         },
         {
+            id: "900002",
             sender: '10000',
-            content: '好的，我准备好了相关资料',
+            content: {
+                ref:{
+                    sid: '20001',
+                    mid:'900001',
+                },
+                message:[
+                    ...parseMessage('好的，我准备好了相关资料'),
+                    {
+                        type: 'image',
+                        data:'https://picsum.photos/400/300?random=10'
+                    }
+                ]
+            },
             time: '2024-01-01 12:32:00',
         },
         {
+            id: "900003",
             sender: '10001',
-            content: '太好了，我们3点在会议室见',
+            content: {
+                message: parseMessage('太好了，我们3点在会议室见')
+            },
             time: '2025-06-20 12:35:00',
         }
     ],
     '20002': [
         {
+            id: "900004",
             sender: '10002',
-            content: '你好，项目文档准备好了吗？',
+            ref:null,
+            content: {
+                message: parseMessage('你好，项目文档准备好了吗？')
+            },
             time: '2025-06-19 15:20:00',
         },
         {
+            id: "900005",
             sender: '10000',
-            content: '还在整理中，稍后发给你',
+            ref:null,
+            content: {
+                message: parseMessage('还在整理中，稍后发给你')
+            },
             time: '2025-06-19 15:30:00',
         },
         {
+            id: "900006",
             sender: '10002',
-            content: '好的，我稍后回复你',
+            ref:null,
+            content: {
+                message: parseMessage('好的，我稍后回复你')
+            },
             time: '2025-06-19 16:00:00',
         }
     ],
     '20003': [
         {
+            id: "900007",
             sender: '10002',
-            content: '大家看一下新的需求文档',
+            content: {
+                message: parseMessage('大家看一下新的需求文档')
+            },
             time: '2025-06-18 10:00:00',
         },
         {
+            id: "900008",
             sender: '10000',
-            content: '我觉得非常的不错啊',
+            content: {
+                ref:{
+                    sid: '20003',
+                    mid:'900007',
+                },
+                message: parseMessage('@10002 我觉得非常的不错啊')
+            },
             time: '2025-06-18 10:10:00',
         },
         {
+            id: "900009",
             sender: '10003',
-            content: '我觉得我们需要调整一下开发计划',
+            content: {
+                message: parseMessage('我觉得我们需要调整一下开发计划')
+            },
             time: '2025-06-19 10:15:00',
         },
         {
+            id: "9000010",
             sender: '10004',
-            content: '同意，我稍后提交一个新的计划',
+            content: {
+                message: [
+                    ...parseMessage('@10000 同意，我稍后提交一个新的计划'),
+                    {
+                        type: 'image',
+                        data:'https://picsum.photos/400/300?random=10'
+                    }
+                ]
+
+            },
             time: '2025-06-19 10:30:00',
         }
     ],
     '20004': [
         {
+            id: "9000011",
             sender: '10004',
-            content: '周末一起去打球吗？',
+            content: {
+                message: parseMessage('周末一起去打球吗？')
+            },
             time: '2025-06-18 18:00:00',
         },
         {
+            id: "9000012",
             sender: '10000',
-            content: '好的，我周六有时间',
+            content: {
+                message: parseMessage('好的，我周六有时间')
+            },
             time: '2025-06-18 18:30:00',
         },
         {
+            id: "9000013",
             sender: '10004',
-            content: '那我们周六下午3点老地方见',
+            content: {
+                message: parseMessage('那我们周六下午3点老地方见')
+            },
             time: '2025-06-18 19:00:00',
         }
     ]
@@ -176,6 +239,12 @@ function selfInfo() {
         id: meta.self,
         meta: getUserInfo(meta.self)
     }
+}
+
+function getSession(id) {
+    let session = meta.sessions[id];
+    session['id'] = id
+    return session
 }
 
 function getSessions() {
@@ -189,6 +258,9 @@ function getSessions() {
 
 function getUserInfo(id) {
     let user = users[id];
+    if (user == null) {
+        return null
+    }
     user['id'] = id;
     return user;
 }
@@ -202,11 +274,29 @@ function getLastMessage(id) {
 }
 
 function getMessages(id) {
+    let msg = messages[id]
+    for (let item of msg) {
+        let u = getUserInfo(item.sender)
+        item.name = u.name
+        item.image = u.image
+        item.lastUpdate = timeFormat(item.time)
+        item.isSelf = u.id === selfInfo().id
+    }
     return messages[id];
 }
 
 function pushMessage(id, msg) {
     messages[id].push(msg);
+}
+
+function getMessage(sid, mid) {
+    const message = messages[sid];
+    for (let data of message) {
+        if (data.id === mid) {
+            return data
+        }
+    }
+    return {}
 }
 
 function searchUser(sessionID, matchUser) {
@@ -222,3 +312,58 @@ function searchUser(sessionID, matchUser) {
     return result
 }
 
+
+function parseMessage(text) {
+    const result = [];
+    let currentText = '';
+    let i = 0;
+
+    while (i < text.length) {
+        if (text[i] === '@') {
+            // 处理当前累积的文本
+            if (currentText) {
+                result.push({type: 'text', data: currentText});
+                currentText = '';
+            }
+
+            // 提取@后的ID（连续非空字符）
+            let j = i + 1;
+            while (j < text.length && text[j] !== ' ') {
+                j++;
+            }
+            const id = text.substring(i + 1, j);
+
+            // 验证ID是否存在
+            if (id && getUserInfo(id) != null) {
+                result.push({type: 'at', id});
+                i = j;
+            } else {
+                currentText += '@';
+                i++;
+            }
+        } else {
+            currentText += text[i];
+            i++;
+        }
+    }
+    if (currentText) {
+        result.push({type: 'text', data: currentText});
+    }
+    return result;
+}
+
+function plainMessage(messages) {
+    let result = ''
+    messages.forEach(message => {
+        if(message.type === 'text') {
+            result += message.data
+        }
+        if (message.type === 'at') {
+            result += '@'+message.id + ' '
+        }
+        if (message.type === 'image') {
+            result += '[图片]'
+        }
+    })
+    return result
+}

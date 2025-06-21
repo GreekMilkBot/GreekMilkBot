@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试平台</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="./index.js"></script>
+    <link rel="stylesheet" href="./index.css">
+</head>
+<body>
+<!-- 会话列表区域 -->
+<div id="app">
+    <div class="chat-list" :class="!display?'show':''">
+        <div class="chat-list-header">
+            <h2>会话列表</h2>
+        </div>
+        <div class="chat-items" id="chatItems">
+            <session v-for="session in sessions"
+                     :active="selected.id === session.id"
+                     :session="session"
+                     :self="self"
+                     @change="()=>{checkSession(session);display = true}">
+            </session>
+        </div>
+    </div>
+    <!-- 聊天区域 -->
+    <chat :session="selected" :self="self" @back="display = false" :class="display?'show':''" ></chat>
+</div>
+<script src="./component.js"></script>
+</body>
+</html>
