@@ -301,7 +301,7 @@ app.component('chat-input-area', {
         </div>
         <div class="chat-input-container">
           <label for="chatInput">
-          </label><textarea ref="input" class="chat-input" placeholder="输入消息..." v-model="message"
+          </label><textarea ref="input" class="chat-input" placeholder="输入消息或粘贴图片..." v-model="message"
                             @input="e=>renderAt(message,e.target.selectionStart)"
                             @keyup="e=>cleanupMsg(e,message)"
                             @keydown.esc="ats=[]"
@@ -363,6 +363,18 @@ app.component('chat', {
             refer
         };
     },
+    watch: {
+        // 当列表数据有变动时，滚动到底部
+        messages() {
+            this.$nextTick(() => {
+                this.scrollToBottom();
+            });
+        }
+    },
+    mounted() {
+        // 页面初次加载时就滚动到底部
+        this.scrollToBottom();
+    },
     methods: {
         checkReference(sessionID, messageId) {
             const msg = getMessage(sessionID, messageId)
@@ -375,12 +387,18 @@ app.component('chat', {
                 content: msg.content,
                 lastUpdate: timeFormat(msg.time),
             }
+        },
+        scrollToBottom() {
+            const container = this.$refs.scrollContainer;
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+            }
         }
     },
     template: `
       <div class="chat-container" :class="session.type === 'group'?'chat-group-session':'chat-private-session'">
         <chat-header @back="$emit('back')" :title="title"></chat-header>
-        <div class="chat-messages">
+        <div class="chat-messages" ref="scrollContainer">
           <chat-message v-for="message in messages"
                         :name="message.name"
                         :content="message.content"

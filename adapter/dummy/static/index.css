@@ -308,6 +308,9 @@ body {
     .mention-dropdown {
         right: 16px;
     }
+    .chat-item.active{
+        background-color: transparent;
+    }
 }
 
 /* @用户下拉列表 */

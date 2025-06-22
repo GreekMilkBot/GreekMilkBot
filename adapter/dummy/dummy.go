@@ -19,7 +19,7 @@ func init() {
 		if err != nil {
 			return nil, err
 		}
-		mux := http.NewServeMux()
+		tree := NewTree()
 		go func() {
 			select {
 			case <-ctx.Done():
@@ -27,9 +27,11 @@ func init() {
 			}
 		}()
 		go func() {
-			_ = http.Serve(listen, mux)
+			_ = http.Serve(listen, tree)
 		}()
-		return &DummyAdapter{}, nil
+		return &DummyAdapter{
+			tree,
+		}, nil
 	})
 }
 
