@@ -38,7 +38,7 @@ app.component('session', {
     setup(props) {
         const meta = ref({
             title: "",
-            image: "",
+            avatar: "",
             isGroup: false,
             message: "",
             lastUpdate: "",
@@ -46,10 +46,10 @@ app.component('session', {
         if (props.session.type === "group") {
             meta.value.isGroup = true
             const groupInfo = getGroupInfo(props.session.target);
-            const lastMsg = getLastMessage(props.session.id);
+            const lastMsg = props.session.lastMessage
             meta.value.title = groupInfo.name
-            meta.value.image = groupInfo.image
-            meta.value.lastUpdate = timeFormat(lastMsg.time)
+            meta.value.avatar = groupInfo.avatar
+            meta.value.lastUpdate = timeFormat(lastMsg.created)
             if (lastMsg.sender !== self.id) {
                 meta.value.message = getUserInfo(lastMsg.sender).name + ":" + plainMessage(lastMsg.content.message)
             } else {
@@ -57,11 +57,11 @@ app.component('session', {
             }
         } else {
             const userInfo = getUserInfo(props.session.target);
-            const lastMsg = getLastMessage(props.session.id);
+            const lastMsg = props.session.lastMessage;
             meta.value.title = userInfo.name
-            meta.value.image = userInfo.image
+            meta.value.avatar = userInfo.avatar
             meta.value.message = plainMessage(lastMsg.content.message)
-            meta.value.lastUpdate = timeFormat(lastMsg.time)
+            meta.value.lastUpdate = timeFormat(lastMsg.created)
         }
         return {
             meta: meta
@@ -70,7 +70,7 @@ app.component('session', {
     template: `
       <div class="chat-item" :class="{active:active}" @click="$emit('change')">
         <div class="avatar">
-          <img :src="meta.image" alt="用户头像">
+          <img :src="meta.avatar" alt="用户头像">
         </div>
         <div class="chat-info">
           <div class="chat-info-header">
@@ -111,7 +111,7 @@ app.component('chat-message-content', {
                 return {
                     name: getUserInfo(msg.sender).name,
                     message: plainMessage(msg.content.message),
-                    lastUpdate: timeFormat(msg.time)
+                    lastUpdate: timeFormat(msg.created)
                 }
             } else {
                 return null
@@ -133,7 +133,7 @@ app.component('chat-message-content', {
         <div class="message-main-content">
           <template v-for="item in content.message">
             <span v-if="item.type ==='text'">{{ item.data }}</span>
-            <span v-if="item.type ==='at'" class="message-at">@{{ item.id }}</span>
+            <span v-if="item.type ==='at'" class="message-at">@{{ item.data }}</span>
             <div class="message-image" v-if="item.type ==='image'">
               <img alt="" :src="item.data"/>
             </div>
@@ -144,11 +144,11 @@ app.component('chat-message-content', {
 })
 
 app.component('chat-message', {
-    props: ['name', 'image', 'content', 'isSelf', 'updateTime'],
+    props: ['name', 'avatar', 'content', 'isSelf', 'updateTime'],
     emits: ['refer'],
     template: `
       <div style="position: relative" class="message" :class="isSelf?'sent':'received'">
-        <div class="avatar"><img :src="image" alt="用户头像"></div>
+        <div class="avatar"><img :src="avatar" alt="用户头像"></div>
         <div class="message-group">
           <p class="message-group-name">{{name}}</p>
           <chat-message-content :content="content"></chat-message-content>
@@ -165,7 +165,7 @@ app.component('chat-message', {
 
 app.component('chat-input-area', {
     props: ['refer', 'session'],
-    emits: ['update:refer'],
+    emits: ['update:refer','send'],
     setup(props) {
         const message = ref("")
         const images = ref([])
@@ -257,10 +257,17 @@ app.component('chat-input-area', {
                     file: image,
                 })
             }
-
-            console.log(this.message, JSON.stringify(msg));
+            console.log(this.session.id)
+            let pushData = {
+                session:this.session.id,
+                user:selfInfo().id,
+                ...msg,
+            }
+            postObj('/api/send',pushData )
+            console.log(pushData);
             this.message = ''
             this.images = []
+            this.$emit('send', null)
             this.$emit('update:refer', null)
             this.$refs.input.focus()
         },
@@ -323,7 +330,7 @@ app.component('chat-input-area', {
         <div class="mention-dropdown" v-if="ats.length > 0">
           <div class="mention-item" v-for="user in ats" @click="atClick(message,user)">
             <div class="avatar">
-              <img :src="user.image" :alt="user.name">
+              <img :src="user.avatar" :alt="user.name">
             </div>
             <div class="name">{{ user.name }}</div>
             <div class="id">(<span class="sid">{{ user.id }}</span>)</div>
@@ -338,29 +345,33 @@ app.component('chat', {
     emits: ['back'],
     setup(props) {
         // 定义计算属性，自动响应 session 的变化
-        const messages = computed(() => {
-            return getMessages(props.session.id);
-        })
-        const title = computed(() => {
+        const messages = ref({})
+        const title = ref("")
+        const refer = ref(null)
+        const refresh = function (props){
+            refer.value = null;
             if (props.session.type === "group") {
                 const g = getGroupInfo(props.session.target);
-                return g.name + `  (${g.users.length})`;
+                title.value =  g.name + `  (${g.users.length})`;
             } else {
                 const u = getUserInfo(props.session.target);
-                return u.name;
+                title.value =  u.name;
             }
-        });
-        const refer = ref(null)
+            messages.value = getMessages(props.session.id)
+            // this.scrollToBottom();
+        }
+        refresh(props)
         watch(
             () => props.session,
             () => {
-                refer.value = null;
+                refresh(props)
             },
         );
         return {
             title,
             messages,
-            refer
+            refer,
+            refresh
         };
     },
     watch: {
@@ -383,9 +394,9 @@ app.component('chat', {
                 sid: sessionID,
                 mid: messageId,
                 name: userInfo.name,
-                image: userInfo.image,
+                avatar: userInfo.avatar,
                 content: msg.content,
-                lastUpdate: timeFormat(msg.time),
+                lastUpdate: timeFormat(msg.created),
             }
         },
         scrollToBottom() {
@@ -402,13 +413,13 @@ app.component('chat', {
           <chat-message v-for="message in messages"
                         :name="message.name"
                         :content="message.content"
-                        :image="message.image"
+                        :avatar="message.avatar"
                         :isSelf="message.isSelf"
                         :update-time="message.lastUpdate"
                         @refer="checkReference(session.id,message.id)"
           ></chat-message>
         </div>
-        <chat-input-area :session="session" v-model:refer="refer"></chat-input-area>
+        <chat-input-area :session="session" v-model:refer="refer" @send="refresh(this)"></chat-input-area>
       </div>
     `
 })
