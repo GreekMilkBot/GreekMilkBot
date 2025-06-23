@@ -7,14 +7,15 @@ let app = createApp({
         const display = ref(false)
         const params = new URLSearchParams(window.location.search);
         let s = params.get("select")
+        let first = Object.keys(sessions.value)[0];
         if (s == null || s === "") {
-            selected.value = getSessions()[0]
+            selected.value = sessions.value[first]
         } else {
             const s2 = getSession(s);
-            if (s2 == null) {
-                selected.value = getSessions()[0]
-            } else {
+            if (s2 != null) {
                 selected.value = s2
+            } else {
+                selected.value = sessions.value[first]
             }
         }
         return {
@@ -106,8 +107,8 @@ app.component('chat-message-content', {
     props: ['content'],
     setup(props) {
         const refer = computed(() => {
-            if (props.content.ref != null) {
-                const msg = getMessage(props.content.ref.sid, props.content.ref.mid)
+            if (props.content.refer != null) {
+                const msg = getMessage(props.content.refer.sid, props.content.refer.mid)
                 return {
                     name: getUserInfo(msg.sender).name,
                     message: plainMessage(msg.content.message),
@@ -116,14 +117,15 @@ app.component('chat-message-content', {
             } else {
                 return null
             }
-        })
+        });
+
         return {
             refer
         }
     },
     template: `
       <div class="message-content">
-        <div class="message-reference" v-if="content.ref != null && refer != null">
+        <div class="message-reference" v-if="refer != null">
           <div class="message-reference-sender"><span class="message-reference-name">{{ refer.name }}</span><span
               class="message-reference-time">{{ refer.lastUpdate }}</span></div>
           <div class="message-reference-content">
@@ -150,7 +152,7 @@ app.component('chat-message', {
       <div style="position: relative" class="message" :class="isSelf?'sent':'received'">
         <div class="avatar"><img :src="avatar" alt="用户头像"></div>
         <div class="message-group">
-          <p class="message-group-name">{{name}}</p>
+          <p class="message-group-name">{{ name }}</p>
           <chat-message-content :content="content"></chat-message-content>
           <div class="message-time">{{ updateTime }}</div>
         </div>
@@ -165,7 +167,7 @@ app.component('chat-message', {
 
 app.component('chat-input-area', {
     props: ['refer', 'session'],
-    emits: ['update:refer','send'],
+    emits: ['update:refer', 'send'],
     setup(props) {
         const message = ref("")
         const images = ref([])
@@ -257,14 +259,12 @@ app.component('chat-input-area', {
                     file: image,
                 })
             }
-            console.log(this.session.id)
             let pushData = {
-                session:this.session.id,
-                user:selfInfo().id,
+                session: this.session.id,
+                user: selfInfo().id,
                 ...msg,
             }
-            postObj('/api/send',pushData )
-            console.log(pushData);
+            postObj('/api/send', pushData)
             this.message = ''
             this.images = []
             this.$emit('send', null)
@@ -348,14 +348,14 @@ app.component('chat', {
         const messages = ref({})
         const title = ref("")
         const refer = ref(null)
-        const refresh = function (props){
+        const refresh = function (props) {
             refer.value = null;
             if (props.session.type === "group") {
                 const g = getGroupInfo(props.session.target);
-                title.value =  g.name + `  (${g.users.length})`;
+                title.value = g.name + `  (${g.users.length})`;
             } else {
                 const u = getUserInfo(props.session.target);
-                title.value =  u.name;
+                title.value = u.name;
             }
             messages.value = getMessages(props.session.id)
             // this.scrollToBottom();

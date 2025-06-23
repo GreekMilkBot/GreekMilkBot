@@ -91,7 +91,7 @@
         "id": "900002",
         "sender": "10000",
         "content": {
-          "ref": {
+          "refer": {
             "sid": "20001",
             "mid": "900001"
           },
@@ -126,7 +126,7 @@
       {
         "id": "900004",
         "sender": "10002",
-        "ref": null,
+        "refer": null,
         "content": {
           "message": [
             {
@@ -140,7 +140,7 @@
       {
         "id": "900005",
         "sender": "10000",
-        "ref": null,
+        "refer": null,
         "content": {
           "message": [
             {
@@ -154,7 +154,7 @@
       {
         "id": "900006",
         "sender": "10002",
-        "ref": null,
+        "refer": null,
         "content": {
           "message": [
             {
@@ -184,7 +184,7 @@
         "id": "900008",
         "sender": "10000",
         "content": {
-          "ref": {
+          "refer": {
             "sid": "20003",
             "mid": "900007"
           },

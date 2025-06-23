@@ -55,7 +55,7 @@ function parseMessage(text) {
 
             // 验证ID是否存在
             if (id && getUserInfo(id) != null) {
-                result.push({type: 'at', id});
+                result.push({type: 'at',data:id});
                 i = j;
             } else {
                 currentText += '@';

@@ -49,7 +49,7 @@ type Tree struct {
 	Sessions map[string]*Session   `json:"sessions"`
 	Messages map[string][]*Message `json:"messages"`
 
-	randomID *atomic.Int64 `json:"-"`
+	randomID *atomic.Int64
 }
 
 func NewTree() *Tree {
@@ -120,7 +120,7 @@ type Message struct {
 	Content  *MessageContent `json:"content"`
 }
 type MessageContent struct {
-	Refer   *Refer            `json:"ref,omitempty"`
+	Refer   *Refer            `json:"refer,omitempty"`
 	Message []*bot.RawContent `json:"message"`
 }
 type Refer struct {
@@ -163,7 +163,12 @@ func (t *Tree) String() string {
 }
 
 func (t *Tree) handleGroups(writer http.ResponseWriter, request *http.Request) {
-	_ = json.NewEncoder(writer).Encode(t.Guilds)
+	id, err := withID(t.Guilds)
+	if err != nil {
+		log.Errorf("handleGroups: %v", err)
+		return
+	}
+	_ = json.NewEncoder(writer).Encode(id)
 }
 
 func (t *Tree) handleSelf(writer http.ResponseWriter, request *http.Request) {

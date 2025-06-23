@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
 	defer cancel()
 	testBot, err := gmb.NewGreekMilkBot(
 		gmb.WithAdapterURL(ctx, os.Getenv("TEST_BOT_URL")))
