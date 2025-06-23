@@ -79,7 +79,7 @@ function plainMessage(messages) {
             result += message.data
         }
         if (message.type === 'at') {
-            result += '@'+message.data + ' '
+            result += '@'+getUserInfo(message.data).name + ' '
         }
         if (message.type === 'image') {
             result += '[图片]'

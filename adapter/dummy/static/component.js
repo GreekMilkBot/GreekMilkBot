@@ -30,6 +30,9 @@ let app = createApp({
         checkSession(session) {
             history.replaceState(null, null, '?select=' + session.id);
             this.selected = session
+        },
+        refreshSession(){
+            this.sessions = getSessions()
         }
     }
 })
@@ -37,33 +40,29 @@ app.component('session', {
     props: ['session', 'self', 'active'],
     emits: ['change'],
     setup(props) {
-        const meta = ref({
-            title: "",
-            avatar: "",
-            isGroup: false,
-            message: "",
-            lastUpdate: "",
-        })
-        if (props.session.type === "group") {
-            meta.value.isGroup = true
-            const groupInfo = getGroupInfo(props.session.target);
+        const meta =computed(()=>{
             const lastMsg = props.session.lastMessage
-            meta.value.title = groupInfo.name
-            meta.value.avatar = groupInfo.avatar
-            meta.value.lastUpdate = timeFormat(lastMsg.created)
-            if (lastMsg.sender !== self.id) {
-                meta.value.message = getUserInfo(lastMsg.sender).name + ":" + plainMessage(lastMsg.content.message)
+            if (props.session.type === "group") {
+                const groupInfo = getGroupInfo(props.session.target);
+                return {
+                    isGroup : true,
+                    title:groupInfo.name,
+                    avatar:groupInfo.avatar,
+                    lastUpdate: timeFormat(lastMsg.created),
+                    message: (lastMsg.sender !== selfInfo().id?getUserInfo(lastMsg.sender).name+":":"")
+                        + plainMessage(lastMsg.content.message)
+                }
             } else {
-                meta.value.message = plainMessage(lastMsg.content.message)
+                const userInfo = getUserInfo(props.session.target);
+                return {
+                    isGroup : false,
+                    title: userInfo.name,
+                    avatar:userInfo.avatar,
+                    lastUpdate: timeFormat(lastMsg.created),
+                    message: plainMessage(lastMsg.content.message),
+                }
             }
-        } else {
-            const userInfo = getUserInfo(props.session.target);
-            const lastMsg = props.session.lastMessage;
-            meta.value.title = userInfo.name
-            meta.value.avatar = userInfo.avatar
-            meta.value.message = plainMessage(lastMsg.content.message)
-            meta.value.lastUpdate = timeFormat(lastMsg.created)
-        }
+        })
         return {
             meta: meta
         }
@@ -107,8 +106,8 @@ app.component('chat-message-content', {
     props: ['content'],
     setup(props) {
         const refer = computed(() => {
-            if (props.content.refer != null) {
-                const msg = getMessage(props.content.refer.sid, props.content.refer.mid)
+            if (props.content.refer)  {
+                const msg = getMessage(props.content.refer)
                 return {
                     name: getUserInfo(msg.sender).name,
                     message: plainMessage(msg.content.message),
@@ -123,6 +122,11 @@ app.component('chat-message-content', {
             refer
         }
     },
+    methods: {
+        atUserInfo(id){
+            return getUserInfo(id)
+        }
+    },
     template: `
       <div class="message-content">
         <div class="message-reference" v-if="refer != null">
@@ -135,7 +139,7 @@ app.component('chat-message-content', {
         <div class="message-main-content">
           <template v-for="item in content.message">
             <span v-if="item.type ==='text'">{{ item.data }}</span>
-            <span v-if="item.type ==='at'" class="message-at">@{{ item.data }}</span>
+            <span v-if="item.type ==='at'" class="message-at">@{{ atUserInfo(item.data).name }}</span>
             <div class="message-image" v-if="item.type ==='image'">
               <img alt="" :src="item.data"/>
             </div>
@@ -240,7 +244,7 @@ app.component('chat-input-area', {
         },
 
         sendMessage() {
-            if (this.message === '') {
+            if (this.message === '' && this.images.length === 0) {
                 return
             }
             let msg = {
@@ -248,15 +252,12 @@ app.component('chat-input-area', {
                 message: parseMessage(this.message),
             };
             if (this.refer != null) {
-                msg.refer = {
-                    sid: this.refer.sid,
-                    mid: this.refer.mid,
-                }
+                msg.refer = this.refer.id
             }
             for (let image of this.images) {
                 msg.message.push({
                     type: 'image',
-                    file: image,
+                    data: image,
                 })
             }
             let pushData = {
@@ -330,9 +331,9 @@ app.component('chat-input-area', {
         <div class="mention-dropdown" v-if="ats.length > 0">
           <div class="mention-item" v-for="user in ats" @click="atClick(message,user)">
             <div class="avatar">
-              <img :src="user.avatar" :alt="user.name">
+              <img :src="user.avatar" :alt="user.groupName?user.groupName:user.name">
             </div>
-            <div class="name">{{ user.name }}</div>
+            <div class="name">{{ user.groupName?user.groupName:user.name }}</div>
             <div class="id">(<span class="sid">{{ user.id }}</span>)</div>
           </div>
         </div>
@@ -342,7 +343,7 @@ app.component('chat-input-area', {
 
 app.component('chat', {
     props: ['session', 'self'],
-    emits: ['back'],
+    emits: ['back','on-update'],
     setup(props) {
         // 定义计算属性，自动响应 session 的变化
         const messages = ref({})
@@ -352,7 +353,7 @@ app.component('chat', {
             refer.value = null;
             if (props.session.type === "group") {
                 const g = getGroupInfo(props.session.target);
-                title.value = g.name + `  (${g.users.length})`;
+                title.value = g.name + `  (${Object.keys(g.users).length})`;
             } else {
                 const u = getUserInfo(props.session.target);
                 title.value = u.name;
@@ -387,12 +388,11 @@ app.component('chat', {
         this.scrollToBottom();
     },
     methods: {
-        checkReference(sessionID, messageId) {
-            const msg = getMessage(sessionID, messageId)
+        checkReference(messageId) {
+            const msg = getMessage(messageId)
             let userInfo = getUserInfo(msg.sender);
             this.refer = {
-                sid: sessionID,
-                mid: messageId,
+                id: messageId,
                 name: userInfo.name,
                 avatar: userInfo.avatar,
                 content: msg.content,
@@ -416,10 +416,13 @@ app.component('chat', {
                         :avatar="message.avatar"
                         :isSelf="message.isSelf"
                         :update-time="message.lastUpdate"
-                        @refer="checkReference(session.id,message.id)"
+                        @refer="checkReference(message.id)"
           ></chat-message>
         </div>
-        <chat-input-area :session="session" v-model:refer="refer" @send="refresh(this)"></chat-input-area>
+        <chat-input-area :session="session" v-model:refer="refer" @send="(e)=>{
+            refresh(this)
+            $emit('on-update')
+        }"></chat-input-area>
       </div>
     `
 })

@@ -1,6 +1,11 @@
 {
   "self": "10000",
+  "bot": "9999",
   "users": {
+    "9999": {
+      "name": "机器人",
+      "avatar": "https://www.gravatar.com/avatar/68b329da9893e34099c7d8ad5cb9c940?s=200&d=identicon&r=PG"
+    },
     "10000": {
       "name": "自己",
       "avatar": "https://www.gravatar.com/avatar/68b329da9893e34099c7d8ad5cb9c940?s=200&d=identicon&r=PG"
@@ -34,248 +39,229 @@
     "30001": {
       "name": "色图俱乐部",
       "avatar": "https://www.gravatar.com/avatar/68b329da989asas099c7d8ad5cb9c940?s=200&d=identicon&r=PG",
-      "users": [
-        {
-          "uid": "10000"
-        },
-        {
-          "uid": "10001"
-        },
-        {
-          "uid": "10002",
+      "users": {
+        "9999": {},
+        "10000": {},
+        "10001": {},
+        "10002": {
           "name": "李四四[别名]"
         },
-        {
-          "uid": "10003"
-        },
-        {
-          "uid": "10004"
-        }
-      ]
+        "10003": {},
+        "10004": {}
+      }
     }
   },
   "sessions": {
     "20001": {
       "type": "private",
-      "target": "10001"
+      "target": "10001",
+      "messages": [
+        {
+          "id": "900001",
+          "sender": "10001",
+          "content": {
+            "message": [
+              {
+                "type": "text",
+                "data": "你好，今天下午开会讨论项目进展"
+              }
+            ]
+          },
+          "created": "2024-01-01 11:30:30"
+        },
+        {
+          "id": "900002",
+          "sender": "10000",
+          "content": {
+            "refer": "20001@900001",
+            "message": [
+              {
+                "type": "text",
+                "data": "好的，我准备好了相关资料"
+              },
+              {
+                "type": "image",
+                "data": "https://picsum.photos/400/300?random=10"
+              }
+            ]
+          },
+          "created": "2024-01-01 12:32:00"
+        },
+        {
+          "id": "900003",
+          "sender": "10001",
+          "content": {
+            "message": [
+              {
+                "type": "text",
+                "data": "太好了，我们3点在会议室见"
+              }
+            ]
+          },
+          "created": "2025-06-20 12:35:00"
+        }
+      ]
     },
     "20002": {
       "type": "private",
-      "target": "10002"
+      "target": "10002",
+      "messages": [
+        {
+          "id": "900004",
+          "sender": "10002",
+          "content": {
+            "message": [
+              {
+                "type": "text",
+                "data": "你好，项目文档准备好了吗？"
+              }
+            ]
+          },
+          "created": "2025-06-19 15:20:00"
+        },
+        {
+          "id": "900005",
+          "sender": "10000",
+          "content": {
+            "message": [
+              {
+                "type": "text",
+                "data": "还在整理中，稍后发给你"
+              }
+            ]
+          },
+          "created": "2025-06-19 15:30:00"
+        },
+        {
+          "id": "900006",
+          "sender": "10002",
+          "content": {
+            "message": [
+              {
+                "type": "text",
+                "data": "好的，我稍后回复你"
+              }
+            ]
+          },
+          "created": "2025-06-19 16:00:00"
+        }
+      ]
     },
     "20003": {
       "type": "group",
-      "target": "30001"
+      "target": "30001",
+      "messages": [
+        {
+          "id": "900007",
+          "sender": "10002",
+          "content": {
+            "message": [
+              {
+                "type": "text",
+                "data": "大家看一下新的需求文档"
+              }
+            ]
+          },
+          "created": "2025-06-18 10:00:00"
+        },
+        {
+          "id": "900008",
+          "sender": "10000",
+          "content": {
+            "refer": "20003@900007",
+            "message": [
+              {
+                "type": "at",
+                "data": "10002"
+              },
+              {
+                "type": "text",
+                "data": " 我觉得非常的不错啊"
+              }
+            ]
+          },
+          "created": "2025-06-18 10:10:00"
+        },
+        {
+          "id": "900009",
+          "sender": "10003",
+          "content": {
+            "message": [
+              {
+                "type": "text",
+                "data": "我觉得我们需要调整一下开发计划"
+              }
+            ]
+          },
+          "created": "2025-06-19 10:15:00"
+        },
+        {
+          "id": "9000010",
+          "sender": "10004",
+          "content": {
+            "message": [
+              {
+                "type": "at",
+                "data": "10000"
+              },
+              {
+                "type": "text",
+                "data": " 同意，我稍后提交一个新的计划"
+              },
+              {
+                "type": "image",
+                "data": "https://picsum.photos/400/300?random=10"
+              }
+            ]
+          },
+          "created": "2025-06-19 10:30:00"
+        }
+      ]
     },
     "20004": {
       "type": "private",
-      "target": "10004"
+      "target": "10004",
+      "messages": [
+        {
+          "id": "9000011",
+          "sender": "10004",
+          "content": {
+            "message": [
+              {
+                "type": "text",
+                "data": "周末一起去打球吗？"
+              }
+            ]
+          },
+          "created": "2025-06-18 18:00:00"
+        },
+        {
+          "id": "9000012",
+          "sender": "10000",
+          "content": {
+            "message": [
+              {
+                "type": "text",
+                "data": "好的，我周六有时间"
+              }
+            ]
+          },
+          "created": "2025-06-18 18:30:00"
+        },
+        {
+          "id": "9000013",
+          "sender": "10004",
+          "content": {
+            "message": [
+              {
+                "type": "text",
+                "data": "那我们周六下午3点老地方见"
+              }
+            ]
+          },
+          "created": "2025-06-18 19:00:00"
+        }
+      ]
     }
-  },
-  "messages": {
-    "20001": [
-      {
-        "id": "900001",
-        "sender": "10001",
-        "content": {
-          "message": [
-            {
-              "type": "text",
-              "data": "你好，今天下午开会讨论项目进展"
-            }
-          ]
-        },
-        "created": "2024-01-01 11:30:30"
-      },
-      {
-        "id": "900002",
-        "sender": "10000",
-        "content": {
-          "refer": {
-            "sid": "20001",
-            "mid": "900001"
-          },
-          "message": [
-            {
-              "type": "text",
-              "data": "好的，我准备好了相关资料"
-            },
-            {
-              "type": "image",
-              "data": "https://picsum.photos/400/300?random=10"
-            }
-          ]
-        },
-        "created": "2024-01-01 12:32:00"
-      },
-      {
-        "id": "900003",
-        "sender": "10001",
-        "content": {
-          "message": [
-            {
-              "type": "text",
-              "data": "太好了，我们3点在会议室见"
-            }
-          ]
-        },
-        "created": "2025-06-20 12:35:00"
-      }
-    ],
-    "20002": [
-      {
-        "id": "900004",
-        "sender": "10002",
-        "refer": null,
-        "content": {
-          "message": [
-            {
-              "type": "text",
-              "data": "你好，项目文档准备好了吗？"
-            }
-          ]
-        },
-        "created": "2025-06-19 15:20:00"
-      },
-      {
-        "id": "900005",
-        "sender": "10000",
-        "refer": null,
-        "content": {
-          "message": [
-            {
-              "type": "text",
-              "data": "还在整理中，稍后发给你"
-            }
-          ]
-        },
-        "created": "2025-06-19 15:30:00"
-      },
-      {
-        "id": "900006",
-        "sender": "10002",
-        "refer": null,
-        "content": {
-          "message": [
-            {
-              "type": "text",
-              "data": "好的，我稍后回复你"
-            }
-          ]
-        },
-        "created": "2025-06-19 16:00:00"
-      }
-    ],
-    "20003": [
-      {
-        "id": "900007",
-        "sender": "10002",
-        "content": {
-          "message": [
-            {
-              "type": "text",
-              "data": "大家看一下新的需求文档"
-            }
-          ]
-        },
-        "created": "2025-06-18 10:00:00"
-      },
-      {
-        "id": "900008",
-        "sender": "10000",
-        "content": {
-          "refer": {
-            "sid": "20003",
-            "mid": "900007"
-          },
-          "message": [
-            {
-              "type": "at",
-              "data": "10002"
-            },
-            {
-              "type": "text",
-              "data": " 我觉得非常的不错啊"
-            }
-          ]
-        },
-        "created": "2025-06-18 10:10:00"
-      },
-      {
-        "id": "900009",
-        "sender": "10003",
-        "content": {
-          "message": [
-            {
-              "type": "text",
-              "data": "我觉得我们需要调整一下开发计划"
-            }
-          ]
-        },
-        "created": "2025-06-19 10:15:00"
-      },
-      {
-        "id": "9000010",
-        "sender": "10004",
-        "content": {
-          "message": [
-            {
-              "type": "at",
-              "data": "10000"
-            },
-            {
-              "type": "text",
-              "data": " 同意，我稍后提交一个新的计划"
-            },
-            {
-              "type": "image",
-              "data": "https://picsum.photos/400/300?random=10"
-            }
-          ]
-        },
-        "created": "2025-06-19 10:30:00"
-      }
-    ],
-    "20004": [
-      {
-        "id": "9000011",
-        "sender": "10004",
-        "content": {
-          "message": [
-            {
-              "type": "text",
-              "data": "周末一起去打球吗？"
-            }
-          ]
-        },
-        "created": "2025-06-18 18:00:00"
-      },
-      {
-        "id": "9000012",
-        "sender": "10000",
-        "content": {
-          "message": [
-            {
-              "type": "text",
-              "data": "好的，我周六有时间"
-            }
-          ]
-        },
-        "created": "2025-06-18 18:30:00"
-      },
-      {
-        "id": "9000013",
-        "sender": "10004",
-        "content": {
-          "message": [
-            {
-              "type": "text",
-              "data": "那我们周六下午3点老地方见"
-            }
-          ]
-        },
-        "created": "2025-06-18 19:00:00"
-      }
-    ]
   }
 }

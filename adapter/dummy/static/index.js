@@ -1,27 +1,25 @@
-let users = {}
-let groups = {}
-let sessions = {}
-let self = {}
-users = fetchObj('/api/users')
-groups = fetchObj('/api/groups')
-sessions = fetchObj('/api/sessions')
-self = fetchObj('/api/self')
-
+let self = fetchObj('/api/self')
 
 function selfInfo() {
-    return self
+    return Object.assign({}, self)
+}
+
+let users = fetchObj('/api/users')
+
+function usersInfo() {
+    return Object.assign({}, users)
 }
 
 function getSession(id) {
-    return sessions[id];
+    return getSessions()[id];
 }
 
 function getSessions() {
-    return sessions;
+    return fetchObj('/api/sessions');
 }
 
 function getUserInfo(id) {
-    let user = users[id];
+    let user = usersInfo()[id];
     if (user == null) {
         return null
     }
@@ -30,12 +28,12 @@ function getUserInfo(id) {
 }
 
 function getGroupInfo(id) {
-    return groups[id]
+    return fetchObj('/api/groups')[id]
 }
 
 
 function getMessages(id) {
-    let msg = fetchObj('/api/message?sid=' + id)
+    let msg = fetchObj('/api/messages?sid=' + id)
     for (let item of msg) {
         let u = getUserInfo(item.sender)
         item.name = u.name
@@ -43,32 +41,47 @@ function getMessages(id) {
         item.created = timeFormat(item.created)
         item.isSelf = u.id === selfInfo().id
     }
+    let session = getSession(id);
+    if (session.type === "group") {
+        let groupInfo = getGroupInfo(session.target);
+        for (const item of msg) {
+            for (let uid of Object.keys(groupInfo.users)) {
+                if (uid === item.sender) {
+                    if (groupInfo.users[uid].name) {
+                        item.name = groupInfo.users[uid].name
+                    }
+                    break
+                }
+            }
+        }
+    }
     return msg;
 }
 
 
-function getMessage(sid, mid) {
-    const message = fetchObj('/api/message?sid=' + sid);
-    for (let data of message) {
-        if (data.id === mid) {
-            return data
-        }
-    }
-    return null
+function getMessage(id) {
+    return fetchObj('/api/message?id=' + id);
 }
 
 function searchUser(sessionID, matchUser) {
+    let match = matchUser.toLowerCase()
     let result = []
-    if (sessions[sessionID].type === 'group') {
-        groups[sessions[sessionID].target].users.forEach(user => {
-            const uu = getUserInfo(user.uid)
-            if (user.name.toLowerCase().includes(matchUser) || uu.name.toLowerCase().includes(matchUser) || uu.id.includes(matchUser)) {
-                if (user.name !== "") {
-                    uu.name = user.name
+    const session = getSession(sessionID)
+    if (session.type === 'group') {
+        let groupInfo = getGroupInfo(session.target);
+        for (let [uid, meta] of Object.entries(groupInfo.users)) {
+            const uu = getUserInfo(uid)
+            if (
+                (meta.name && meta.name.toLowerCase().includes(match)) ||
+                uu.name.toLowerCase().includes(match) ||
+                uu.id.includes(matchUser)
+            ) {
+                if (meta.name) {
+                    uu.groupName = meta.name
                 }
                 result.push(uu)
             }
-        })
+        }
     }
     return result
 }

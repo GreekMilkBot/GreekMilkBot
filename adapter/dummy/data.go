@@ -43,11 +43,11 @@ type Tree struct {
 	mutex          *sync.RWMutex
 
 	Self string `json:"self"`
+	Bot  string `json:"bot"`
 
-	Users    map[string]*User      `json:"users"`
-	Guilds   map[string]*Guild     `json:"guilds"`
-	Sessions map[string]*Session   `json:"sessions"`
-	Messages map[string][]*Message `json:"messages"`
+	Users    map[string]*User    `json:"users"`
+	Guilds   map[string]*Guild   `json:"guilds"`
+	Sessions map[string]*Session `json:"sessions"`
 
 	randomID *atomic.Int64
 }
@@ -60,15 +60,16 @@ func NewTree() *Tree {
 		Users:    make(map[string]*User),
 		Guilds:   make(map[string]*Guild),
 		Sessions: make(map[string]*Session),
-		Messages: make(map[string][]*Message),
 
 		randomID: &atomic.Int64{},
 		Self:     "",
+		Bot:      "",
 	}
 	t.HandleFunc("/api/self", t.handleSelf)
 	t.HandleFunc("/api/users", t.handleUsers)
 	t.HandleFunc("/api/groups", t.handleGroups)
 	t.HandleFunc("/api/sessions", t.handleSessions)
+	t.HandleFunc("/api/messages", t.handleMessages)
 	t.HandleFunc("/api/message", t.handleMessage)
 	t.HandleFunc("/api/send", t.handleSend)
 	t.Handle("/", http.FileServerFS(static.FS))
@@ -94,8 +95,9 @@ func withID[T any](data map[string]T) (map[string]map[string]any, error) {
 }
 
 type Session struct {
-	SType  string `json:"type"` // private or group
-	Target string `json:"target"`
+	SType    string     `json:"type"` // private or group
+	Target   string     `json:"target"`
+	Messages []*Message `json:"messages"`
 }
 
 type User struct {
@@ -105,11 +107,10 @@ type User struct {
 
 type Guild struct {
 	bot.Guild `json:",inline"`
-	Users     []*GroupUser `json:"users"` // user id
+	Users     map[string]*GroupUser `json:"users"` // user id
 }
 
 type GroupUser struct {
-	UID  string `json:"uid"`
 	Name string `json:"name"`
 }
 
@@ -120,12 +121,8 @@ type Message struct {
 	Content  *MessageContent `json:"content"`
 }
 type MessageContent struct {
-	Refer   *Refer            `json:"refer,omitempty"`
+	Refer   string            `json:"refer,omitempty"`
 	Message []*bot.RawContent `json:"message"`
-}
-type Refer struct {
-	Sid string `json:"sid,omitempty"`
-	Mid string `json:"mid,omitempty"`
 }
 
 type RequestMsg struct {
@@ -148,11 +145,14 @@ func (t *Tree) handleUsers(writer http.ResponseWriter, request *http.Request) {
 func (t *Tree) handleSessions(writer http.ResponseWriter, request *http.Request) {
 	result := make(map[string]map[string]any)
 	for s, session := range t.Sessions {
+		if session.SType == "group" && t.Guilds[session.Target].Users[t.Self] == nil {
+			continue
+		}
 		m := make(map[string]any)
 		m["id"] = s
 		m["type"] = session.SType
 		m["target"] = session.Target
-		messages := t.Messages[s]
+		messages := t.Sessions[s].Messages
 		m["lastMessage"] = messages[len(messages)-1]
 		result[s] = m
 	}
@@ -163,7 +163,13 @@ func (t *Tree) String() string {
 }
 
 func (t *Tree) handleGroups(writer http.ResponseWriter, request *http.Request) {
-	id, err := withID(t.Guilds)
+	result := make(map[string]*Guild)
+	for s, guild := range t.Guilds {
+		if guild.Users[t.Self] != nil {
+			result[s] = guild
+		}
+	}
+	id, err := withID(result)
 	if err != nil {
 		log.Errorf("handleGroups: %v", err)
 		return
@@ -180,14 +186,40 @@ func (t *Tree) handleSelf(writer http.ResponseWriter, request *http.Request) {
 	})
 }
 
-func (t *Tree) handleMessage(writer http.ResponseWriter, request *http.Request) {
+func (t *Tree) handleMessages(writer http.ResponseWriter, request *http.Request) {
 	query := request.URL.Query()
-	query.Get("sid")
-	message := t.Messages[query.Get("sid")]
+	sid := query.Get("sid")
+	message := t.Sessions[sid].Messages
 	if message == nil {
 		http.NotFound(writer, request)
 	}
-	_ = json.NewEncoder(writer).Encode(message)
+	result := make([]*Message, 0, len(message))
+	for _, m := range message {
+		result = append(result, &Message{
+			ID:       fmt.Sprintf("%s@%s", sid, m.ID),
+			Sender:   m.Sender,
+			CreateAt: m.CreateAt,
+			Content:  m.Content,
+		})
+	}
+	_ = json.NewEncoder(writer).Encode(result)
+}
+func (t *Tree) handleMessage(writer http.ResponseWriter, request *http.Request) {
+	query := request.URL.Query()
+	id := query.Get("id")
+	sid, mid, found := strings.Cut(id, "@")
+	if !found {
+		http.NotFound(writer, request)
+		return
+	}
+	for _, message := range t.Sessions[sid].Messages {
+		if message.ID == mid {
+			_ = json.NewEncoder(writer).Encode(message)
+			return
+		}
+	}
+	http.NotFound(writer, request)
+	return
 }
 
 func (t *Tree) handleSend(writer http.ResponseWriter, request *http.Request) {
@@ -197,8 +229,8 @@ func (t *Tree) handleSend(writer http.ResponseWriter, request *http.Request) {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 		return
 	}
-	t.Messages[ref.Session] = append(t.Messages[ref.Session], &Message{
-		ID:       fmt.Sprintf("%d", t.randomID.Add(1)),
+	t.Sessions[ref.Session].Messages = append(t.Sessions[ref.Session].Messages, &Message{
+		ID:       fmt.Sprintf("%s@%d", ref.Session, t.randomID.Add(1)),
 		Sender:   t.Self,
 		CreateAt: CustomTime(time.Now()),
 		Content:  ref.MessageContent,

@@ -3,11 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
+	v11 "github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11"
 	"os"
 	"strings"
-	"time"
-
-	v11 "github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11"
 
 	"github.com/GreekMilkBot/GreekMilkBot/bot"
 	"github.com/GreekMilkBot/GreekMilkBot/gmb"
@@ -17,8 +15,7 @@ import (
 )
 
 func main() {
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
-	defer cancel()
+	ctx := context.Background()
 	testBot, err := gmb.NewGreekMilkBot(
 		gmb.WithAdapterURL(ctx, os.Getenv("TEST_BOT_URL")))
 	if err != nil {

@@ -1,3 +1,4 @@
+/* 全局样式 - 黑色主题基础 */
 * {
     margin: 0;
     padding: 0;
@@ -8,33 +9,38 @@
 body {
     height: 100vh;
     overflow: hidden;
+    background-color: #0f0f0f;
+    color: #e0e0e0;
 }
 
 #app {
     display: flex;
     height: 100vh;
     overflow: hidden;
+    background-color: #121212;
 }
 
-/* 会话列表区域 */
+/* 会话列表区域 - 黑色主题 */
 .chat-list {
     width: 300px;
-    border-right: 1px solid #e0e0e0;
+    border-right: 1px solid #2d2d2d;
     display: flex;
     flex-direction: column;
     height: 100%;
+    background-color: #181818;
 }
 
 
 .chat-list-header {
     padding: 16px;
-    border-bottom: 1px solid #e0e0e0;
-    background-color: #f8f9fa;
+    border-bottom: 1px solid #2d2d2d;
+    background-color: #1e1e1e;
 }
 
 .chat-list-header h2 {
     font-size: 20px;
     font-weight: 500;
+    color: #e0e0e0;
 }
 
 
@@ -46,27 +52,29 @@ body {
 .chat-item {
     display: flex;
     padding: 12px 16px;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid #2d2d2d;
     cursor: pointer;
+    background-color: transparent;
 }
 
 .chat-item:hover {
-    background-color: #f5f5f5;
+    background-color: #252525;
 }
 
 .chat-item.active {
-    background-color: #e8f0fe;
+    background-color: #2a3b5c;
 }
 
 .avatar {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background-color: #ddd;
+    background-color: #333;
     margin-right: 12px;
     overflow: hidden;
     min-width: 40px;
     min-height: 40px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .avatar img {
@@ -92,6 +100,7 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    color: #e0e0e0;
 }
 
 .chat-time {
@@ -101,24 +110,25 @@ body {
 
 .chat-message {
     font-size: 14px;
-    color: #555;
+    color: #a0a0a0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* 聊天区域 */
+/* 聊天区域 - 黑色主题 */
 .chat-container {
     flex: 1;
     display: flex;
     flex-direction: column;
     height: 100%;
+    background-color: #121212;
 }
 
 .chat-header {
     padding: 16px;
-    border-bottom: 1px solid #e0e0e0;
-    background-color: #f8f9fa;
+    border-bottom: 1px solid #2d2d2d;
+    background-color: #1e1e1e;
     display: flex;
     align-items: center;
 }
@@ -127,11 +137,13 @@ body {
     display: none;
     margin-right: 12px;
     cursor: pointer;
+    color: #e0e0e0;
 }
 
 .current-chat-name {
     font-size: 18px;
     font-weight: 500;
+    color: #e0e0e0;
 }
 
 .chat-messages {
@@ -140,6 +152,7 @@ body {
     padding: 16px;
     display: flex;
     flex-direction: column;
+    background-color: #121212;
 }
 
 .message {
@@ -170,23 +183,21 @@ body {
     padding: 10px 14px;
     border-radius: 18px;
     font-size: 14px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01), 0 1px 2px rgba(0, 0, 0, 0.01);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .message.sent .message-content {
-    background-color: #007aff;
+    background-color: #673ab7; /* 紫色作为发送消息背景 */
     color: white;
-    border-bottom-right-radius: 2px;
 }
 
 .message.received .message-content {
-    background-color: #f1f0f0;
-    color: #333;
-    border-bottom-left-radius: 2px;
+    background-color: #2d2d2d; /* 深灰色作为接收消息背景 */
+    color: #e0e0e0;
 }
 
 .message .avatar {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .message-time {
@@ -206,8 +217,8 @@ body {
 
 .chat-input-area {
     padding: 12px 16px;
-    border-top: 1px solid #e0e0e0;
-    background-color: #f8f9fa;
+    border-top: 1px solid #2d2d2d;
+    background-color: #1e1e1e;
     position: relative;
 }
 
@@ -242,7 +253,7 @@ body {
     position: absolute;
     top: 2px;
     right: 2px;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.7);
     color: white;
     width: 16px;
     height: 16px;
@@ -257,16 +268,20 @@ body {
 .chat-input {
     flex: 1;
     padding: 10px 14px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid #2d2d2d;
     border-radius: 20px;
     font-size: 14px;
     margin-right: 12px;
     resize: none;
     height: 40px;
+    background-color: #181818;
+    color: #e0e0e0;
+    -ms-overflow-style: none; /* IE 和 Edge */
+    scrollbar-width: none; /* 火狐 */
 }
 
 .send-button {
-    background-color: #007aff;
+    background-color: #673ab7; /* 紫色作为发送按钮颜色 */
     color: white;
     border: none;
     border-radius: 50%;
@@ -276,10 +291,10 @@ body {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
-/* 响应式设计 */
+/* 响应式设计 - 黑色主题 */
 @media (max-width: 768px) {
     .chat-list {
         width: 100%;
@@ -303,26 +318,28 @@ body {
 
     .back-button {
         display: block;
+        color: #e0e0e0;
     }
 
     .mention-dropdown {
         right: 16px;
     }
-    .chat-item.active{
+
+    .chat-item.active {
         background-color: transparent;
     }
 }
 
-/* @用户下拉列表 */
+/* @用户下拉列表 - 黑色主题 */
 .mention-dropdown {
     position: absolute;
     bottom: 60px;
     left: 16px;
     right: 72px;
-    background-color: white;
-    border: 1px solid #e0e0e0;
+    background-color: #181818;
+    border: 1px solid #2d2d2d;
     border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
     z-index: 100;
     max-height: 200px;
     overflow-y: auto;
@@ -336,7 +353,7 @@ body {
 }
 
 .mention-item:hover {
-    background-color: #f5f5f5;
+    background-color: #252525;
 }
 
 .mention-item .avatar {
@@ -347,16 +364,18 @@ body {
 
 .mention-item .name {
     font-size: 14px;
+    color: #e0e0e0;
 }
 
 .mention-item .id {
     font-size: 12px;
+    color: #888;
 }
 
-/* 高亮@用户名 */
+/* 高亮@用户名 - 黑色主题 */
 .at-user {
-    background-color: #e8f0fe;
-    color: #007aff;
+    background-color: #2a3b5c;
+    color: #a389ff;
     padding: 0 4px;
     border-radius: 4px;
     font-weight: 500;
@@ -372,14 +391,14 @@ body {
     transition: opacity 0.2s;
     cursor: pointer;
     color: #888;
-    background-color: white;
+    background-color: #181818;
     border-radius: 50%;
     width: 25px;
     height: 25px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .message.sent .reference-icon {
@@ -393,7 +412,7 @@ body {
 
 .message-group-name {
     font-size: 11px;
-    color: #222;
+    color: #a0a0a0;
     padding: 1px 14px;
 }
 
@@ -410,17 +429,17 @@ body {
 }
 
 .reference-icon:hover {
-    color: #007aff;
+    color: #a389ff;
 }
 
 
 .referenced-message {
-    background-color: #f8f9fa;
-    border-left: 3px solid #007aff;
+    background-color: #181818;
+    border-left: 3px solid #673ab7;
     padding: 8px 12px;
     margin-bottom: 8px;
     border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     font-size: 13px;
 }
 
@@ -433,6 +452,7 @@ body {
 .referenced-message-sender {
     font-weight: 500;
     margin-right: 8px;
+    color: #e0e0e0;
 }
 
 .referenced-message-time {
@@ -443,16 +463,16 @@ body {
 .message-reference {
     margin-bottom: 8px;
     padding-bottom: 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     font-size: 12px;
 }
 
 .message.sent .message-reference {
-    border-bottom-color: rgba(255, 255, 255, 0.2);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
 .message.received .message-reference {
-    border-bottom-color: rgba(0, 0, 0, 0.1);
+    border-bottom-color: rgba(0, 0, 0, 0.5);
 }
 
 .message-reference-name {
@@ -466,6 +486,7 @@ body {
 .message-reference-sender {
     font-weight: 500;
     margin-bottom: 2px;
+    color: #e0e0e0;
 }
 
 .message-reference-time {
@@ -473,15 +494,16 @@ body {
     margin-left: 4px;
     font-size: 10px;
     margin-bottom: 2px;
+    color: #888;
 }
 
 .sent .message-at {
-    color: aqua;
+    color: #a389ff;
     cursor: pointer;
 }
 
 .received .message-at {
-    color: #001aff;
+    color: #a389ff;
     cursor: pointer;
 }
 
@@ -503,5 +525,5 @@ body {
 }
 
 .remove-reference:hover {
-    color: #ff3b30;
+    color: #ff5252;
 }
