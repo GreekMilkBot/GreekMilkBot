@@ -5,16 +5,18 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
-	"github.com/GreekMilkBot/GreekMilkBot/adapter/dummy/internal"
-	"github.com/GreekMilkBot/GreekMilkBot/adapter/dummy/static"
-	"github.com/GreekMilkBot/GreekMilkBot/bot"
-	"github.com/GreekMilkBot/GreekMilkBot/gmb"
-	"github.com/GreekMilkBot/GreekMilkBot/log"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+
+	"github.com/GreekMilkBot/GreekMilkBot/adapter/dummy/internal"
+	"github.com/GreekMilkBot/GreekMilkBot/adapter/dummy/internal/server"
+	"github.com/GreekMilkBot/GreekMilkBot/adapter/dummy/static"
+	"github.com/GreekMilkBot/GreekMilkBot/bot"
+	"github.com/GreekMilkBot/GreekMilkBot/gmb"
+	"github.com/GreekMilkBot/GreekMilkBot/log"
 )
 
 //go:embed default.json
@@ -68,100 +70,123 @@ type DummyAdapter struct {
 }
 
 func (d *DummyAdapter) Bind(ctx *bot.Bus) error {
-	//d.tree.BindBotMessage = func(msg internal.ResponseMsg) {
-	//	message, err := d.Dummy2Message(msg, 5)
-	//	if err != nil {
-	//		log.Warnf("message covert error %s", err.Error())
-	//		return
-	//	}
-	//	ctx.SendMessage(*message)
-	//}
-	//ctx.CallFunc("send_private_msg", d.sendPrivateMessage)
-	//ctx.CallFunc("send_group_msg", d.sendGroupMessage)
+	d.tree.BindBotMessage = func(msg server.QueryMessageResp) {
+		message, err := d.Dummy2Message(msg, 5)
+		if err != nil {
+			log.Warnf("message covert error %s", err.Error())
+			return
+		}
+		ctx.SendMessage(*message)
+	}
+	ctx.CallFunc("send_private_msg", d.sendPrivateMessage)
+	ctx.CallFunc("send_group_msg", d.sendGroupMessage)
 	return nil
 }
 
-//func (d *DummyAdapter) Dummy2Message(msg internal.ResponseMsg, depth int) (*bot.Message, error) {
-//	if depth == 0 {
-//		return nil, errors.New("depth is zero")
-//	}
-//	depth = depth - 1
-//	user := d.tree.Users[msg.Sender]
-//	result := bot.Message{
-//		ID: msg.Sender,
-//		Owner: &bot.User{
-//			Id:     msg.Sender,
-//			Name:   user.Name,
-//			Avatar: user.Avatar,
-//		},
-//		Created: msg.Created,
-//		Updated: msg.Created,
-//	}
-//	if session := d.tree.Sessions[msg.Session]; session.SType == "group" {
-//		guild := d.tree.Guilds[session.Target]
-//		result.Guild = &bot.Guild{
-//			Id:     session.Target,
-//			Name:   guild.Name,
-//			Avatar: guild.Avatar,
-//		}
-//	}
-//	if msg.Refer != "" {
-//		sid, message := d.tree.GetMessage(msg.Refer)
-//		botMsg, err := d.Dummy2Message(internal.ResponseMsg{
-//			RequestMsg: internal.RequestMsg{
-//				Session:        sid,
-//				Sender:         message.Sender,
-//				MessageContent: message.Content,
-//			},
-//			ID:      message.ID,
-//			Created: time.Time(message.CreateAt),
-//		}, depth)
-//		if err != nil {
-//			return nil, err
-//		}
-//		result.Quote = botMsg
-//	}
-//	for _, content := range msg.MessageContent.Message {
-//		switch content.Type {
-//		case "text":
-//			result.Content = append(result.Content, bot.ContentText{Text: content.Data})
-//		case "image":
-//			if strings.HasPrefix(content.Data, "data:") {
-//				image, err := NewDataUriContentImage(content.Data)
-//				if err != nil {
-//					return nil, err
-//				}
-//				result.Content = append(result.Content, image)
-//			} else {
-//				result.Content = append(result.Content, bot.ContentImage{
-//					URL:     content.Data,
-//					Summary: "",
-//				})
-//			}
-//		case "at":
-//			u := d.tree.Users[content.Data]
-//			result.Content = append(result.Content, bot.ContentAt{
-//				Uid: content.Data,
-//				User: &bot.User{
-//					Id:     content.Data,
-//					Name:   u.Name,
-//					Avatar: u.Avatar,
-//				},
-//			})
-//		}
-//	}
-//	return &result, nil
-//}
-//
-//func (d *DummyAdapter) sendPrivateMessage(userId string, msg *bot.Contents) (string, error) {
-//	//d.tree.queryPrivateSession(d.tree.Bot, userId)
-//	//d.tree.pushMessage()
-//	return a.sendMessage(userId, "", msg)
-//}
-//
-//func (d *DummyAdapter) sendGroupMessage(groupID string, msg *bot.Contents) (string, error) {
-//	return a.sendMessage("", groupID, msg)
-//}
+func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*bot.Message, error) {
+	if depth == 0 {
+		return nil, errors.New("depth is zero")
+	}
+	content := msg.Content
+	depth = depth - 1
+	result := bot.Message{
+		ID: content.ID,
+		Owner: &bot.User{
+			Id:     content.Sender.ID,
+			Name:   content.Sender.Name,
+			Avatar: content.Sender.Avatar,
+		},
+		Created: content.CreateAt,
+		Updated: content.CreateAt,
+	}
+	if msg.Type == "group" {
+		result.MsgType = "guild"
+		result.Guild = &bot.Guild{
+			Id:     msg.TargetID,
+			Name:   msg.TargetName,
+			Avatar: msg.TargetAvatar,
+		}
+	}
+	if content.ReferID != "" {
+		query, err := d.tree.Server.QueryMessage(content.ReferID)
+		if err != nil {
+			return nil, err
+		}
+		botMsg, err := d.Dummy2Message(*query, depth)
+		if err != nil {
+			return nil, err
+		}
+		result.Quote = botMsg
+	}
+	for _, content := range msg.Content.Content {
+		switch content.Type {
+		case "text":
+			result.Content = append(result.Content, bot.ContentText{Text: content.Data})
+		case "image":
+			if strings.HasPrefix(content.Data, "data:") {
+				image, err := NewDataUriContentImage(content.Data)
+				if err != nil {
+					return nil, err
+				}
+				result.Content = append(result.Content, image)
+			} else {
+				result.Content = append(result.Content, bot.ContentImage{
+					URL:     content.Data,
+					Summary: "",
+				})
+			}
+		case "at":
+			u, err := d.tree.Server.GetUser(content.Data)
+			if err != nil {
+				return nil, err
+			}
+			result.Content = append(result.Content, bot.ContentAt{
+				Uid: content.Data,
+				User: &bot.User{
+					Id:     content.Data,
+					Name:   u.Name,
+					Avatar: u.Avatar,
+				},
+			})
+		}
+	}
+	return &result, nil
+}
+
+func (d *DummyAdapter) sendPrivateMessage(userId string, msg *bot.Contents) (string, error) {
+	// d.tree.queryPrivateSession(d.tree.Bot, userId)
+	// d.tree.pushMessage()
+	puts := covertMessage(msg)
+
+	return d.tree.SendPrivateMessage(userId, puts)
+}
+
+func (d *DummyAdapter) sendGroupMessage(groupID string, msg *bot.Contents) (string, error) {
+	puts := covertMessage(msg)
+
+	return d.tree.SendGroupMessage(groupID, puts)
+}
+
+func covertMessage(msg *bot.Contents) []*bot.RawContent {
+	puts := make([]*bot.RawContent, 0)
+	for _, content := range *msg {
+		switch it := content.(type) {
+		case bot.ContentText:
+			puts = append(puts, &bot.RawContent{
+				Type: "text", Data: it.Text,
+			})
+		case bot.ContentAt:
+			puts = append(puts, &bot.RawContent{
+				Type: "at", Data: it.Uid,
+			})
+		case bot.ContentImage:
+			puts = append(puts, &bot.RawContent{
+				Type: "image", Data: it.URL,
+			})
+		}
+	}
+	return puts
+}
 
 func NewDataUriContentImage(dataURI string) (*bot.ContentImage, error) {
 	if !strings.HasPrefix(dataURI, "data:") {

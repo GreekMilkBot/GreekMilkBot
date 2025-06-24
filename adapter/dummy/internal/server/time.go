@@ -1,4 +1,4 @@
-package internal
+package server
 
 import (
 	"fmt"
@@ -18,13 +18,11 @@ func (ct *CustomTime) UnmarshalJSON(b []byte) (err error) {
 	return
 }
 
-// MarshalJSON writes a quoted string in the custom format
-func (ct CustomTime) MarshalJSON() ([]byte, error) {
+func (ct *CustomTime) MarshalJSON() ([]byte, error) {
 	return []byte(ct.String()), nil
 }
 
 // String returns the time in the custom format
 func (ct *CustomTime) String() string {
-	t := time.Time(*ct)
-	return fmt.Sprintf("%q", t.Format(ctLayout))
+	return fmt.Sprintf("%q", time.Time(*ct).Format(ctLayout))
 }

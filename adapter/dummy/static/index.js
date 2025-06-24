@@ -4,7 +4,6 @@ function selfInfo() {
     return Object.assign({}, self)
 }
 
-let users = fetchObj('/api/users')
 
 function usersInfo() {
     return Object.assign({}, users)
@@ -19,43 +18,16 @@ function getSessions() {
 }
 
 function getUserInfo(id) {
-    let user = usersInfo()[id];
-    if (user == null) {
-        return null
-    }
-    user['id'] = id;
-    return user;
+   return fetchObj('/api/user?id=' + id)
 }
 
 function getGroupInfo(id) {
-    return fetchObj('/api/groups')[id]
+    return fetchObj('/api/group?id='+ id)
 }
 
 
 function getMessages(id) {
-    let msg = fetchObj('/api/messages?sid=' + id)
-    for (let item of msg) {
-        let u = getUserInfo(item.sender)
-        item.name = u.name
-        item.avatar = u.avatar
-        item.created = timeFormat(item.created)
-        item.isSelf = u.id === selfInfo().id
-    }
-    let session = getSession(id);
-    if (session.type === "group") {
-        let groupInfo = getGroupInfo(session.target);
-        for (const item of msg) {
-            for (let uid of Object.keys(groupInfo.users)) {
-                if (uid === item.sender) {
-                    if (groupInfo.users[uid].name) {
-                        item.name = groupInfo.users[uid].name
-                    }
-                    break
-                }
-            }
-        }
-    }
-    return msg;
+    return  fetchObj('/api/messages?id=' + id)
 }
 
 
@@ -63,23 +35,26 @@ function getMessage(id) {
     return fetchObj('/api/message?id=' + id);
 }
 
-function searchUser(sessionID, matchUser) {
+function searchUser(session, matchUser) {
     let match = matchUser.toLowerCase()
     let result = []
-    const session = getSession(sessionID)
     if (session.type === 'group') {
-        let groupInfo = getGroupInfo(session.target);
-        for (let [uid, meta] of Object.entries(groupInfo.users)) {
-            const uu = getUserInfo(uid)
+        let group = getGroupInfo(session.target);
+        for (let [uid, user] of Object.entries(group.users)) {
             if (
-                (meta.name && meta.name.toLowerCase().includes(match)) ||
-                uu.name.toLowerCase().includes(match) ||
-                uu.id.includes(matchUser)
+                (user.alias && user.alias.toLowerCase().includes(match)) ||
+                user.name.toLowerCase().includes(match) ||
+                user.id.includes(matchUser)
             ) {
-                if (meta.name) {
-                    uu.groupName = meta.name
+                let name = user.name;
+                if (user.alias){
+                    name = user.alias
                 }
-                result.push(uu)
+                result.push({
+                    id: user.id,
+                    avatar: user.avatar,
+                    name:name
+                })
             }
         }
     }

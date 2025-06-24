@@ -55,7 +55,7 @@ function parseMessage(text) {
 
             // 验证ID是否存在
             if (id && getUserInfo(id) != null) {
-                result.push({type: 'at',data:id});
+                result.push({type: 'at', data: id});
                 i = j;
             } else {
                 currentText += '@';
@@ -75,11 +75,11 @@ function parseMessage(text) {
 function plainMessage(messages) {
     let result = ''
     messages.forEach(message => {
-        if(message.type === 'text') {
+        if (message.type === 'text') {
             result += message.data
         }
         if (message.type === 'at') {
-            result += '@'+getUserInfo(message.data).name + ' '
+            result += '@' + getUserInfo(message.data).name + ' '
         }
         if (message.type === 'image') {
             result += '[图片]'
@@ -88,7 +88,7 @@ function plainMessage(messages) {
     return result
 }
 
-function fetchObj(url){
+function fetchObj(url) {
     try {
         const xhr = new XMLHttpRequest();
         xhr.open('GET', url, false); // 第三个参数设为 false 表示同步请求
@@ -107,7 +107,7 @@ function fetchObj(url){
 }
 
 
-function postObj(url,data){
+function postObj(url, data) {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', url, false);
     xhr.setRequestHeader('Content-Type', 'application/json');
@@ -119,8 +119,18 @@ function postObj(url,data){
             console.log(`请求失败，状态码: ${xhr.status}`);
             return {}
         }
-    }catch (e){
+    } catch (e) {
         console.log(e);
         return {}
+    }
+}
+
+function getUrlParam(key, defaultValue = "") {
+    const params = new URLSearchParams(window.location.search);
+    let s = params.get("select")
+    if (s == null || s === "") {
+        return defaultValue;
+    } else {
+        return s
     }
 }

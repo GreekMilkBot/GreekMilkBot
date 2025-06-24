@@ -2,22 +2,15 @@ const {createApp, ref, computed, watch} = Vue
 let app = createApp({
     setup() {
         const sessions = ref(getSessions())
-        const self = ref(selfInfo())
-        const selected = ref(null)
-        const display = ref(false)
-        const params = new URLSearchParams(window.location.search);
-        let s = params.get("select")
-        let first = Object.keys(sessions.value)[0];
-        if (s == null || s === "") {
-            selected.value = sessions.value[first]
-        } else {
-            const s2 = getSession(s);
-            if (s2 != null) {
-                selected.value = s2
-            } else {
-                selected.value = sessions.value[first]
-            }
+        const selectID = getUrlParam('select',Object.keys(sessions.value)[0])
+        const selected = ref()
+        if (sessions.value[selectID]){
+            selected.value = sessions.value[selectID]
+        }else {
+            selected.value = sessions.value[Object.keys(sessions.value)[0]]
         }
+        const self = ref(selfInfo())
+        const display = ref(false)
         return {
             sessions: sessions,
             selected: selected,
@@ -29,8 +22,8 @@ let app = createApp({
     },
 
     methods: {
-        checkSession(session) {
-            history.replaceState(null, null, '?select=' + session.id);
+        checkSession(sid,session) {
+            history.replaceState(null, null, '?select=' + sid);
             this.selected = session
         },
         refreshSession() {
@@ -40,6 +33,7 @@ let app = createApp({
 
     },
     mounted() {
+        const t = this
         let scheme = "ws://"
         if (window.location.protocol === 'https:') {
             scheme = "wss://"
@@ -49,17 +43,17 @@ let app = createApp({
             console.log("event connected.");
         }
         ws.onclose = function (evt) {
-            this.ws = null;
+            t.ws = null;
         }
         ws.onmessage = function (evt) {
             console.log("event received.");
-            this.refreshSession()
+            t.refreshSession()
         }
         ws.onerror = function (evt) {
             console.log("ERROR: " + evt.data);
         }
         this.ws = ws;
-        this.timer = setInterval(this.refreshSession, 30*1000);
+        this.timer = setInterval(this.refreshSession, 10*1000);
     },
     beforeDestroy() {
         this.ws.close()
@@ -70,45 +64,28 @@ let app = createApp({
 app.component('session', {
     props: ['session', 'self', 'active'],
     emits: ['change'],
-    setup(props) {
-        const meta = computed(() => {
-            const lastMsg = props.session.lastMessage
-            if (props.session.type === "group") {
-                const groupInfo = getGroupInfo(props.session.target);
-                return {
-                    isGroup: true,
-                    title: groupInfo.name,
-                    avatar: groupInfo.avatar,
-                    lastUpdate: timeFormat(lastMsg.created),
-                    message: (lastMsg.sender !== selfInfo().id ? getUserInfo(lastMsg.sender).name + ":" : "")
-                        + plainMessage(lastMsg.content.message)
-                }
-            } else {
-                const userInfo = getUserInfo(props.session.target);
-                return {
-                    isGroup: false,
-                    title: userInfo.name,
-                    avatar: userInfo.avatar,
-                    lastUpdate: timeFormat(lastMsg.created),
-                    message: plainMessage(lastMsg.content.message),
-                }
-            }
-        })
-        return {
-            meta: meta
-        }
+    methods:{
+        timeFMT(time){
+            return timeFormat(time)
+        },
+        msgFMT(msg){
+            return plainMessage(msg)
+        },
+
     },
     template: `
       <div class="chat-item" :class="{active:active}" @click="$emit('change')">
         <div class="avatar">
-          <img :src="meta.avatar" alt="用户头像">
+          <img :src="session.avatar" alt="用户头像">
         </div>
         <div class="chat-info">
           <div class="chat-info-header">
-            <div class="chat-name">{{ meta.title }}<span v-if="meta.isGroup">(群组)</span></div>
-            <div class="chat-time">{{ meta.lastUpdate }}</div>
+            <div class="chat-name">{{ session.name }}<span v-if="session.type === 'group'">(群组)</span></div>
+            <div class="chat-time">{{ timeFMT(session.last_message.created) }}</div>
           </div>
-          <div class="chat-message">{{ meta.message }}</div>
+          <div class="chat-message">
+            <template v-if="session.last_message.sender.id !== self.id ">{{session.last_message.sender.name}}:</template>
+            {{ msgFMT(session.last_message.content) }}</div>
         </div>
       </div>
     `,
@@ -137,12 +114,12 @@ app.component('chat-message-content', {
     props: ['content'],
     setup(props) {
         const refer = computed(() => {
-            if (props.content.refer) {
-                const msg = getMessage(props.content.refer)
+            if (props.content.refer_id !== "") {
+                const msg = getMessage(props.content.refer_id)
                 return {
-                    name: getUserInfo(msg.sender).name,
-                    message: plainMessage(msg.content.message),
-                    lastUpdate: timeFormat(msg.created)
+                    name: msg.content.sender.name,
+                    created: timeFormat(msg.content.created),
+                    message: plainMessage(msg.content.content)
                 }
             } else {
                 return null
@@ -162,13 +139,13 @@ app.component('chat-message-content', {
       <div class="message-content">
         <div class="message-reference" v-if="refer != null">
           <div class="message-reference-sender"><span class="message-reference-name">{{ refer.name }}</span><span
-              class="message-reference-time">{{ refer.lastUpdate }}</span></div>
+              class="message-reference-time">{{ refer.created }}</span></div>
           <div class="message-reference-content">
             {{ refer.message }}
           </div>
         </div>
         <div class="message-main-content">
-          <template v-for="item in content.message">
+          <template v-for="item in content.content">
             <span v-if="item.type ==='text'">{{ item.data }}</span>
             <span v-if="item.type ==='at'" class="message-at">@{{ atUserInfo(item.data).name }}</span>
             <div class="message-image" v-if="item.type ==='image'">
@@ -181,15 +158,20 @@ app.component('chat-message-content', {
 })
 
 app.component('chat-message', {
-    props: ['name', 'avatar', 'content', 'isSelf', 'updateTime'],
+    props: [ 'content','self'],
     emits: ['refer'],
+    methods:{
+        timeFMT(time){
+            return timeFormat(time)
+        },
+    },
     template: `
-      <div style="position: relative" class="message" :class="isSelf?'sent':'received'">
-        <div class="avatar"><img :src="avatar" alt="用户头像"></div>
+      <div style="position: relative" class="message" :class="content.sender.id ===self.id ?'sent':'received'">
+        <div class="avatar"><img :src="content.sender.avatar" alt="用户头像"></div>
         <div class="message-group">
-          <p class="message-group-name">{{ name }}</p>
+          <p class="message-group-name">{{ content.sender.alias?content.sender.alias:content.sender.name }}</p>
           <chat-message-content :content="content"></chat-message-content>
-          <div class="message-time">{{ updateTime }}</div>
+          <div class="message-time">{{ timeFMT(content.created) }}</div>
         </div>
         <div class="reference-icon" @click="$emit('refer')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -253,7 +235,7 @@ app.component('chat-input-area', {
                 return;
             }
             const query = text.substring(lastAtIndex + 1, index);
-            this.ats = searchUser(this.session.id, query.toLowerCase());
+            this.ats = searchUser(this.session, query.toLowerCase());
         },
         atClick(text, user) {
             const index = this.$refs.input.selectionStart;
@@ -278,23 +260,20 @@ app.component('chat-input-area', {
             if (this.message === '' && this.images.length === 0) {
                 return
             }
-            let msg = {
-                refer: null,
-                message: parseMessage(this.message),
+            let pushData = {
+                session_id: this.session.id,
+                user_id: selfInfo().id,
+                refer_id: '',
+                content: parseMessage(this.message),
             };
             if (this.refer != null) {
-                msg.refer = this.refer.id
+                pushData.refer_id = this.refer.id
             }
             for (let image of this.images) {
-                msg.message.push({
+                pushData.content.push({
                     type: 'image',
                     data: image,
                 })
-            }
-            let pushData = {
-                session: this.session.id,
-                user: selfInfo().id,
-                ...msg,
             }
             postObj('/api/send', pushData)
             this.message = ''
@@ -312,7 +291,7 @@ app.component('chat-input-area', {
         <div class="referenced-message" v-if="refer != null">
           <div class="referenced-message-header">
             <div class="referenced-message-sender">{{ refer.name }}</div>
-            <div class="referenced-message-time">{{ refer.lastUpdate }}</div>
+            <div class="referenced-message-time">{{ refer.created }}</div>
             <div class="remove-reference" @click="$emit('update:refer',null)">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path
@@ -321,7 +300,7 @@ app.component('chat-input-area', {
               </svg>
             </div>
           </div>
-          <div class="referenced-message-content">{{ plainMessage(refer.content.message) }}</div>
+          <div class="referenced-message-content">{{ plainMessage(refer.content) }}</div>
         </div>
         <div class="attachments-container">
           <div
@@ -386,8 +365,7 @@ app.component('chat', {
                 const g = getGroupInfo(props.session.target);
                 title.value = g.name + `  (${Object.keys(g.users).length})`;
             } else {
-                const u = getUserInfo(props.session.target);
-                title.value = u.name;
+                title.value = props.session.name
             }
             messages.value = getMessages(props.session.id)
             // this.scrollToBottom();
@@ -426,13 +404,12 @@ app.component('chat', {
     methods: {
         checkReference(messageId) {
             const msg = getMessage(messageId)
-            let userInfo = getUserInfo(msg.sender);
             this.refer = {
                 id: messageId,
-                name: userInfo.name,
-                avatar: userInfo.avatar,
-                content: msg.content,
-                lastUpdate: timeFormat(msg.created),
+                name: msg.content.sender.name,
+                avatar: msg.content.sender.avatar,
+                content: msg.content.content,
+                created: timeFormat(msg.content.created),
             }
         },
         scrollToBottom() {
@@ -446,12 +423,9 @@ app.component('chat', {
       <div class="chat-container" :class="session.type === 'group'?'chat-group-session':'chat-private-session'">
         <chat-header @back="$emit('back')" :title="title"></chat-header>
         <div class="chat-messages" ref="scrollContainer">
-          <chat-message v-for="message in messages"
-                        :name="message.name"
-                        :content="message.content"
-                        :avatar="message.avatar"
-                        :isSelf="message.isSelf"
-                        :update-time="message.created"
+          <chat-message v-for="message in messages.content"
+                        :content="message"
+                        :self="self"
                         @refer="checkReference(message.id)"
           ></chat-message>
         </div>

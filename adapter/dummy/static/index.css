@@ -226,6 +226,7 @@ body {
     font-size: 11px;
     color: #888;
     align-self: flex-end;
+    margin: 3px 10px;
 }
 
 
@@ -414,7 +415,7 @@ body {
     background-color: #404040;
     border-radius: 50%;
     width: 25px;
-    bottom: 0;
+    bottom: 25px;
     height: 25px;
     display: flex;
     align-items: center;

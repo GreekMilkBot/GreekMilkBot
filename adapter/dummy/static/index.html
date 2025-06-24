@@ -17,16 +17,21 @@
             <h2 @click="refreshSession()">会话列表</h2>
         </div>
         <div class="chat-items" id="chatItems">
-            <session v-for="session in sessions"
-                     :active="selected.id === session.id"
+            <session v-for="( session,sid) in sessions"
+                     :active="selected.name === session.name"
                      :session="session"
                      :self="self"
-                     @change="()=>{checkSession(session);display = true}">
+                     @change="()=>{checkSession(sid,session);display = true}">
             </session>
         </div>
     </div>
     <!-- 聊天区域 -->
-    <chat :session="selected" v-bind:sessions="sessions" :self="self" @back="display = false" :class="display?'show':''" @on-update="refreshSession()" ></chat>
+    <chat :session="selected"
+          v-bind:sessions="sessions"
+          :self="self"
+          @back="display = false"
+          :class="display?'show':''"
+    ></chat>
 </div>
 <script src="./component.js"></script>
 </body>

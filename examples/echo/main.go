@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
-	v11 "github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11"
 	"os"
 	"strings"
+
+	v11 "github.com/GreekMilkBot/GreekMilkBot/adapter/onebot/v11"
 
 	"github.com/GreekMilkBot/GreekMilkBot/bot"
 	"github.com/GreekMilkBot/GreekMilkBot/gmb"
