@@ -22,7 +22,9 @@ let app = createApp({
             sessions: sessions,
             selected: selected,
             self: self,
-            display
+            display,
+            ws: null,
+            timer: null,
         }
     },
 
@@ -31,33 +33,62 @@ let app = createApp({
             history.replaceState(null, null, '?select=' + session.id);
             this.selected = session
         },
-        refreshSession(){
+        refreshSession() {
+            console.log('重加载消息  ')
             this.sessions = getSessions()
         }
+
+    },
+    mounted() {
+        let scheme = "ws://"
+        if (window.location.protocol === 'https:') {
+            scheme = "wss://"
+        }
+        const ws = new WebSocket(scheme + window.location.host + "/api/ws");
+        ws.onopen = function (evt) {
+            console.log("event connected.");
+        }
+        ws.onclose = function (evt) {
+            this.ws = null;
+        }
+        ws.onmessage = function (evt) {
+            console.log("event received.");
+            this.refreshSession()
+        }
+        ws.onerror = function (evt) {
+            console.log("ERROR: " + evt.data);
+        }
+        this.ws = ws;
+        this.timer = setInterval(this.refreshSession, 30*1000);
+    },
+    beforeDestroy() {
+        this.ws.close()
+        this.ws = null;
+        this.timer = null;
     }
 })
 app.component('session', {
     props: ['session', 'self', 'active'],
     emits: ['change'],
     setup(props) {
-        const meta =computed(()=>{
+        const meta = computed(() => {
             const lastMsg = props.session.lastMessage
             if (props.session.type === "group") {
                 const groupInfo = getGroupInfo(props.session.target);
                 return {
-                    isGroup : true,
-                    title:groupInfo.name,
-                    avatar:groupInfo.avatar,
+                    isGroup: true,
+                    title: groupInfo.name,
+                    avatar: groupInfo.avatar,
                     lastUpdate: timeFormat(lastMsg.created),
-                    message: (lastMsg.sender !== selfInfo().id?getUserInfo(lastMsg.sender).name+":":"")
+                    message: (lastMsg.sender !== selfInfo().id ? getUserInfo(lastMsg.sender).name + ":" : "")
                         + plainMessage(lastMsg.content.message)
                 }
             } else {
                 const userInfo = getUserInfo(props.session.target);
                 return {
-                    isGroup : false,
+                    isGroup: false,
                     title: userInfo.name,
-                    avatar:userInfo.avatar,
+                    avatar: userInfo.avatar,
                     lastUpdate: timeFormat(lastMsg.created),
                     message: plainMessage(lastMsg.content.message),
                 }
@@ -106,7 +137,7 @@ app.component('chat-message-content', {
     props: ['content'],
     setup(props) {
         const refer = computed(() => {
-            if (props.content.refer)  {
+            if (props.content.refer) {
                 const msg = getMessage(props.content.refer)
                 return {
                     name: getUserInfo(msg.sender).name,
@@ -123,7 +154,7 @@ app.component('chat-message-content', {
         }
     },
     methods: {
-        atUserInfo(id){
+        atUserInfo(id) {
             return getUserInfo(id)
         }
     },
@@ -333,7 +364,7 @@ app.component('chat-input-area', {
             <div class="avatar">
               <img :src="user.avatar" :alt="user.groupName?user.groupName:user.name">
             </div>
-            <div class="name">{{ user.groupName?user.groupName:user.name }}</div>
+            <div class="name">{{ user.groupName ? user.groupName : user.name }}</div>
             <div class="id">(<span class="sid">{{ user.id }}</span>)</div>
           </div>
         </div>
@@ -342,8 +373,8 @@ app.component('chat-input-area', {
 })
 
 app.component('chat', {
-    props: ['session', 'self'],
-    emits: ['back','on-update'],
+    props: ['sessions', 'session', 'self'],
+    emits: ['back', 'on-update'],
     setup(props) {
         // 定义计算属性，自动响应 session 的变化
         const messages = ref({})
@@ -368,11 +399,16 @@ app.component('chat', {
                 refresh(props)
             },
         );
+        watch(
+            () => props.sessions,
+            () => {
+                refresh(props)
+            },
+        );
         return {
             title,
             messages,
             refer,
-            refresh
         };
     },
     watch: {
@@ -415,14 +451,11 @@ app.component('chat', {
                         :content="message.content"
                         :avatar="message.avatar"
                         :isSelf="message.isSelf"
-                        :update-time="message.lastUpdate"
+                        :update-time="message.created"
                         @refer="checkReference(message.id)"
           ></chat-message>
         </div>
-        <chat-input-area :session="session" v-model:refer="refer" @send="(e)=>{
-            refresh(this)
-            $emit('on-update')
-        }"></chat-input-area>
+        <chat-input-area :session="session" v-model:refer="refer" @send="$emit('on-update')"></chat-input-area>
       </div>
     `
 })

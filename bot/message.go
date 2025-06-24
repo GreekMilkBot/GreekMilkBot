@@ -144,6 +144,13 @@ type ContentImage struct {
 	Summary string `json:"summary"`
 }
 
+func NewBase64ContentImage(mediaType, data, summary string) ContentImage {
+	return ContentImage{
+		URL:     fmt.Sprintf("base64://%s?ContentType=%s", data, mediaType),
+		Summary: summary,
+	}
+}
+
 func (c ContentImage) String() string {
 	return fmt.Sprintf("image[summary=%s,blob]", c.Summary)
 }

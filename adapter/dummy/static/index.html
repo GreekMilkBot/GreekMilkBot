@@ -14,7 +14,7 @@
 <div id="app">
     <div class="chat-list" :class="!display?'show':''">
         <div class="chat-list-header">
-            <h2>会话列表</h2>
+            <h2 @click="refreshSession()">会话列表</h2>
         </div>
         <div class="chat-items" id="chatItems">
             <session v-for="session in sessions"
@@ -26,7 +26,7 @@
         </div>
     </div>
     <!-- 聊天区域 -->
-    <chat :session="selected" :self="self" @back="display = false" :class="display?'show':''" @on-update="refreshSession()" ></chat>
+    <chat :session="selected" v-bind:sessions="sessions" :self="self" @back="display = false" :class="display?'show':''" @on-update="refreshSession()" ></chat>
 </div>
 <script src="./component.js"></script>
 </body>
