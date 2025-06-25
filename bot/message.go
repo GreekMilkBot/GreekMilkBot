@@ -89,8 +89,8 @@ type Content interface {
 	fmt.Stringer
 }
 type Message struct {
-	ID    string `json:"id"`
-	Owner *User  `json:"user"`
+	ID    string       `json:"id"`
+	Owner *GuildMember `json:"user"`
 
 	MsgType string `json:"type"`
 	Guild   *Guild `json:"guild"`

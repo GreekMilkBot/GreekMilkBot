@@ -1,9 +1,5 @@
 package bot
 
-import (
-	"time"
-)
-
 // Guild 群聊
 type Guild struct {
 	Id     string `json:"id"`
@@ -12,11 +8,10 @@ type Guild struct {
 }
 
 type GuildMember struct {
-	User `json:"user"`
+	*User `json:",inline"`
 
-	GuildName string `json:"name"`
-
-	GuildJoinedAt time.Time `json:"joined_at"`
+	GuildName string   `json:"alias"`
+	GuildRole []string `json:"role"`
 }
 
 type User struct {

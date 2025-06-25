@@ -91,10 +91,13 @@ func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*b
 	depth = depth - 1
 	result := bot.Message{
 		ID: content.ID,
-		Owner: &bot.User{
-			Id:     content.Sender.ID,
-			Name:   content.Sender.Name,
-			Avatar: content.Sender.Avatar,
+		Owner: &bot.GuildMember{
+			User: &bot.User{
+				Id:     content.Sender.ID,
+				Name:   content.Sender.Name,
+				Avatar: content.Sender.Avatar,
+			},
+			GuildRole: make([]string, 0),
 		},
 		Created: content.CreateAt,
 		Updated: content.CreateAt,
@@ -106,6 +109,7 @@ func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*b
 			Name:   msg.TargetName,
 			Avatar: msg.TargetAvatar,
 		}
+		result.Owner.GuildName = content.Sender.AliasName
 	}
 	if content.ReferID != "" {
 		query, err := d.wrapper.Server.QueryMessage(content.ReferID)

@@ -133,10 +133,13 @@ func (a *OneBotV11Adapter) processMessage(ctx *bot.Bus, msg []byte) error {
 func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*bot.Message, error) {
 	msg := &bot.Message{
 		ID: fmt.Sprintf("%d", e.MessageID),
-		Owner: &bot.User{
-			Id:     fmt.Sprintf("%d", e.Sender.UserId),
-			Name:   e.Sender.Nickname,
-			Avatar: fmt.Sprintf("https://q1.qlogo.cn/g?b=qq&nk=%d&s=256", e.Sender.UserId),
+		Owner: &bot.GuildMember{
+			User: &bot.User{
+				Id:     fmt.Sprintf("%d", e.Sender.UserId),
+				Name:   e.Sender.Nickname,
+				Avatar: fmt.Sprintf("https://q1.qlogo.cn/g?b=qq&nk=%d&s=256", e.Sender.UserId),
+			},
+			GuildRole: make([]string, 0),
 		},
 		Content: make(bot.Contents, 0),
 		Guild:   nil,
@@ -155,6 +158,8 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*b
 			Name:   info.GroupName,
 			Avatar: fmt.Sprintf("https://p.qlogo.cn/gh/%d/%d/640", info.GroupID, info.GroupID),
 		}
+		msg.Owner.GuildName = e.Sender.Card
+		msg.Owner.GuildRole = []string{e.Sender.Role}
 		if first := e.Message[0]; first.MsgType == "reply" {
 			e.Message = e.Message[1:]
 			if depth > 0 {

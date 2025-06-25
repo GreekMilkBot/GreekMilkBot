@@ -168,8 +168,11 @@ func (g *GreekMilkBot) ClientCall(pluginID string, key string, params []any, res
 	case <-time.After(timeout):
 		if value, loaded := g.call.LoadAndDelete(id); loaded {
 			close(value.(chan bot.ActionResponse))
+			// 方法未被处理
+			return errors.ErrUnsupported
+		} else {
+			return context.DeadlineExceeded
 		}
-		return context.DeadlineExceeded
 	}
 	return nil
 }
