@@ -17,7 +17,6 @@ import (
 type (
 	BotMessageHandle func(ctx context.Context, id string, message bot.Message)
 	BotEventHandle   func(ctx context.Context, id string, event bot.Event)
-
 	ClientCallHandle func(pluginID string, key string, params []any, result []any, timeout time.Duration) error
 )
 

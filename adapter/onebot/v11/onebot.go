@@ -67,8 +67,7 @@ func (a *OneBotV11Adapter) Bind(ctx *bot.Bus) error {
 	if a.bind.Swap(true) {
 		return errors.New("already bind")
 	}
-	ctx.CallFunc("send_private_msg", a.sendPrivateMessage)
-	ctx.CallFunc("send_group_msg", a.sendGroupMessage)
+	ctx.SendBinding(a)
 	return a.driver.Bind(func(msg []byte) {
 		log.Debugf("OneBotV11Adapter: Received message: %s", msg)
 		go func(m []byte) {
@@ -218,15 +217,15 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*b
 	return msg, nil
 }
 
-func (a *OneBotV11Adapter) sendPrivateMessage(userId string, msg *bot.Contents) (string, error) {
+func (a *OneBotV11Adapter) SendPrivateMessage(userId string, msg *bot.ClientMessage) (string, error) {
 	return a.sendMessage(userId, "", msg)
 }
 
-func (a *OneBotV11Adapter) sendGroupMessage(groupID string, msg *bot.Contents) (string, error) {
+func (a *OneBotV11Adapter) SendGroupMessage(groupID string, msg *bot.ClientMessage) (string, error) {
 	return a.sendMessage("", groupID, msg)
 }
 
-func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg *bot.Contents) (string, error) {
+func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg *bot.ClientMessage) (string, error) {
 	var uid, gid uint64
 	if userId != "" {
 		i, err := strconv.ParseInt(userId, 10, 64)
@@ -243,7 +242,15 @@ func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg *bot.C
 		gid = uint64(i)
 	}
 	message := make([]models.Message, 0)
-	for _, content := range *msg {
+	if msg.QuoteID != "" {
+		message = append(message, models.Message{
+			MsgType: "reply",
+			MsgData: map[string]interface{}{
+				"id": msg.QuoteID,
+			},
+		})
+	}
+	for _, content := range *msg.Message {
 		switch content := content.(type) {
 		case bot.ContentText:
 			last := len(message) - 1

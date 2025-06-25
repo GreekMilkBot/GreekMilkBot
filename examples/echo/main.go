@@ -50,11 +50,18 @@ func main() {
 					}
 				}
 			}
-			sendMessage, err := gmb.NewClientBus(id, testBot.ClientCall).SendMessage(&message, &contents)
+			clientMessage := bot.ClientMessage{
+				QuoteID: "",
+				Message: &contents,
+			}
+			if message.Quote != nil {
+				clientMessage.QuoteID = message.Quote.ID
+			}
+			sendMessage, err := gmb.NewClientBus(id, testBot.ClientCall).SendMessage(&message, &clientMessage)
 			if err != nil {
 				log.Errorf("send message error %v", zap.Error(err))
 			}
-			log.Infof(sendMessage)
+			log.Infof("新消息ID %s", sendMessage)
 		}
 	})
 	testBot.HandleEventFunc(func(ctx context.Context, id string, event bot.Event) {

@@ -31,7 +31,7 @@ func init() {
 		if err != nil {
 			return nil, err
 		}
-		tree := internal.NewTree()
+		wrapper := internal.NewWrapper()
 		include := url.Query().Get("include")
 		if include != "" {
 			var data []byte
@@ -44,33 +44,34 @@ func init() {
 					return nil, err
 				}
 			}
-			if err := json.Unmarshal(data, tree); err != nil {
+			if err := json.Unmarshal(data, wrapper); err != nil {
 				return nil, err
 			}
 
 		}
-		tree.Handle("/", http.FileServerFS(static.FS))
+		wrapper.Handle("/", http.FileServerFS(static.FS))
 		go func() {
 			select {
 			case <-ctx.Done():
 				_ = listen.Close()
+				_ = wrapper.Close()
 			}
 		}()
 		go func() {
-			_ = http.Serve(listen, tree)
+			_ = http.Serve(listen, wrapper)
 		}()
 		return &DummyAdapter{
-			tree,
+			wrapper,
 		}, nil
 	})
 }
 
 type DummyAdapter struct {
-	tree *internal.Tree
+	wrapper *internal.Wrapper
 }
 
 func (d *DummyAdapter) Bind(ctx *bot.Bus) error {
-	d.tree.BindBotMessage = func(msg server.QueryMessageResp) {
+	d.wrapper.BindBotMessage = func(msg server.QueryMessageResp) {
 		message, err := d.Dummy2Message(msg, 5)
 		if err != nil {
 			log.Warnf("message covert error %s", err.Error())
@@ -78,8 +79,7 @@ func (d *DummyAdapter) Bind(ctx *bot.Bus) error {
 		}
 		ctx.SendMessage(*message)
 	}
-	ctx.CallFunc("send_private_msg", d.sendPrivateMessage)
-	ctx.CallFunc("send_group_msg", d.sendGroupMessage)
+	ctx.SendBinding(d)
 	return nil
 }
 
@@ -108,7 +108,7 @@ func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*b
 		}
 	}
 	if content.ReferID != "" {
-		query, err := d.tree.Server.QueryMessage(content.ReferID)
+		query, err := d.wrapper.Server.QueryMessage(content.ReferID)
 		if err != nil {
 			return nil, err
 		}
@@ -116,7 +116,10 @@ func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*b
 		if err != nil {
 			return nil, err
 		}
-		result.Quote = botMsg
+		if len(botMsg.Content) >= 0 {
+			// 有些内容无法识别导致内容为空
+			result.Quote = botMsg
+		}
 	}
 	for _, content := range msg.Content.Content {
 		switch content.Type {
@@ -136,7 +139,7 @@ func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*b
 				})
 			}
 		case "at":
-			u, err := d.tree.Server.GetUser(content.Data)
+			u, err := d.wrapper.Server.GetUser(content.Data)
 			if err != nil {
 				return nil, err
 			}
@@ -153,18 +156,18 @@ func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*b
 	return &result, nil
 }
 
-func (d *DummyAdapter) sendPrivateMessage(userId string, msg *bot.Contents) (string, error) {
-	// d.tree.queryPrivateSession(d.tree.Bot, userId)
-	// d.tree.pushMessage()
-	puts := covertMessage(msg)
+func (d *DummyAdapter) SendPrivateMessage(userId string, msg *bot.ClientMessage) (string, error) {
+	// d.wrapper.queryPrivateSession(d.wrapper.Bot, userId)
+	// d.wrapper.pushMessage()
+	puts := covertMessage(msg.Message)
 
-	return d.tree.SendPrivateMessage(userId, puts)
+	return d.wrapper.SendPrivateMessage(userId, msg.QuoteID, puts)
 }
 
-func (d *DummyAdapter) sendGroupMessage(groupID string, msg *bot.Contents) (string, error) {
-	puts := covertMessage(msg)
+func (d *DummyAdapter) SendGroupMessage(groupID string, msg *bot.ClientMessage) (string, error) {
+	puts := covertMessage(msg.Message)
 
-	return d.tree.SendGroupMessage(groupID, puts)
+	return d.wrapper.SendGroupMessage(groupID, msg.QuoteID, puts)
 }
 
 func covertMessage(msg *bot.Contents) []*bot.RawContent {

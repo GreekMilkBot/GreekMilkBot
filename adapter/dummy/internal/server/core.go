@@ -78,6 +78,9 @@ func (s *Session) TargetUserID(self string) string {
 	if s.IsGroup() {
 		return ""
 	}
+	if !slices.Contains(s.Object, self) {
+		return ""
+	}
 	for _, i := range s.Object {
 		if i != self {
 			return i
@@ -96,8 +99,8 @@ type SessionResp struct {
 }
 
 // GetSessions 查询当前用户可用的会话
-func (s *Server) GetSessions(userID string) map[string]SessionResp {
-	result := make(map[string]SessionResp)
+func (s *Server) GetSessions(userID string) map[string]*SessionResp {
+	result := make(map[string]*SessionResp)
 	for sessionID, session := range s.Sessions {
 		resp := SessionResp{
 			ID: sessionID,
@@ -150,7 +153,7 @@ func (s *Server) GetSessions(userID string) map[string]SessionResp {
 			CreateAt: time.Time(*lastMsg.CreateAt),
 			Content:  lastMsg.Content.Message,
 		}
-		result[sessionID] = resp
+		result[sessionID] = &resp
 
 	}
 	return result
@@ -424,7 +427,7 @@ func (s *Server) GetOrCreatePrivateSessionID(u1, u2 string) (string, error) {
 	return sid, nil
 }
 
-func (s *Server) GetSessionIDGroupByID(id string) (string, error) {
+func (s *Server) GetSessionIDByGroupID(id string) (string, error) {
 	if s.Guilds[id] == nil {
 		return "", errors.New("guild not found")
 	}

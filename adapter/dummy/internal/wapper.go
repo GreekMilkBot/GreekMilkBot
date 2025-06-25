@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type Tree struct {
+type Wrapper struct {
 	*http.ServeMux `json:"-"`
 	router         map[string]chan string
 	mutex          *sync.RWMutex
@@ -24,8 +24,8 @@ type Tree struct {
 	BindBotMessage func(resp server.QueryMessageResp) `json:"-"`
 }
 
-func NewTree() *Tree {
-	t := &Tree{
+func NewWrapper() *Wrapper {
+	t := &Wrapper{
 		ServeMux: http.NewServeMux(),
 		router:   make(map[string]chan string),
 		mutex:    new(sync.RWMutex),
@@ -46,40 +46,40 @@ func NewTree() *Tree {
 	return t
 }
 
-func (t *Tree) Close() error {
+func (t *Wrapper) Close() error {
 	t.broker.Stop()
 	return nil
 }
 
-func (t *Tree) handleSelf(_ *http.Request) (any, error) {
+func (t *Wrapper) handleSelf(_ *http.Request) (any, error) {
 	return t.Server.GetUser(t.Self)
 }
 
-func (t *Tree) handleSessions(_ *http.Request) (any, error) {
+func (t *Wrapper) handleSessions(_ *http.Request) (any, error) {
 	return t.Server.GetSessions(t.Self), nil
 }
 
-func (t *Tree) handleMessages(r *http.Request) (any, error) {
+func (t *Wrapper) handleMessages(r *http.Request) (any, error) {
 	sid := r.URL.Query().Get("id")
 	return t.Server.GetMessages(t.Self, sid)
 }
 
-func (t *Tree) handleUser(r *http.Request) (any, error) {
+func (t *Wrapper) handleUser(r *http.Request) (any, error) {
 	uid := r.URL.Query().Get("id")
 	return t.Server.GetUser(uid)
 }
 
-func (t *Tree) handleGroup(r *http.Request) (any, error) {
+func (t *Wrapper) handleGroup(r *http.Request) (any, error) {
 	mid := r.URL.Query().Get("id")
 	return t.Server.GetGuild(mid)
 }
 
-func (t *Tree) handleMessage(r *http.Request) (any, error) {
+func (t *Wrapper) handleMessage(r *http.Request) (any, error) {
 	gid := r.URL.Query().Get("id")
 	return t.Server.QueryMessage(gid)
 }
 
-func (t *Tree) SendPrivateMessage(userID string, content []*bot.RawContent) (string, error) {
+func (t *Wrapper) SendPrivateMessage(userID string, referID string, content []*bot.RawContent) (string, error) {
 	id, err := t.Server.GetOrCreatePrivateSessionID(t.Bot, userID)
 	if err != nil {
 		return "", err
@@ -87,25 +87,25 @@ func (t *Tree) SendPrivateMessage(userID string, content []*bot.RawContent) (str
 	return t.Server.AddMessage(server.AddMessageReq{
 		UserID:    t.Bot,
 		SessionID: id,
-		ReferID:   "",
+		ReferID:   referID,
 		Content:   content,
 	})
 }
 
-func (t *Tree) SendGroupMessage(id string, content []*bot.RawContent) (string, error) {
-	sid, err := t.Server.GetSessionIDGroupByID(id)
+func (t *Wrapper) SendGroupMessage(id string, referID string, content []*bot.RawContent) (string, error) {
+	sid, err := t.Server.GetSessionIDByGroupID(id)
 	if err != nil {
 		return "", err
 	}
 	return t.Server.AddMessage(server.AddMessageReq{
 		UserID:    t.Bot,
 		SessionID: sid,
-		ReferID:   "",
+		ReferID:   referID,
 		Content:   content,
 	})
 }
 
-func (t *Tree) handleSend(r *http.Request) (any, error) {
+func (t *Wrapper) handleSend(r *http.Request) (any, error) {
 	req := server.AddMessageReq{}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -113,12 +113,16 @@ func (t *Tree) handleSend(r *http.Request) (any, error) {
 	}
 	req.UserID = t.Self
 	id, err := t.Server.AddMessage(req)
-	message, err := t.Server.QueryMessage(id)
 	if err != nil {
 		return nil, err
 	}
+	sessions := t.Server.GetSessions(t.Bot)
 	botMessage := t.BindBotMessage
-	if botMessage != nil {
+	if botMessage != nil && sessions[req.SessionID] != nil {
+		message, err := t.Server.QueryMessage(id)
+		if err != nil {
+			return nil, err
+		}
 		go botMessage(*message)
 	}
 	t.broker.Publish("{}")
@@ -127,7 +131,7 @@ func (t *Tree) handleSend(r *http.Request) (any, error) {
 
 var wsCfg = websocket.Upgrader{}
 
-func (t *Tree) handleEvent(w http.ResponseWriter, r *http.Request) {
+func (t *Wrapper) handleEvent(w http.ResponseWriter, r *http.Request) {
 	c, err := wsCfg.Upgrade(w, r, nil)
 	if err != nil {
 		log.Warnf("upgrade error: %s", err)

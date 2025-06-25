@@ -162,5 +162,18 @@ func (b *Bus) CallFunc(name string, f any) {
 	if reflect.TypeOf(f).Kind() != reflect.Func {
 		panic("f must be a func")
 	}
-	b.call.Store(name, f)
+	_, loaded := b.call.LoadOrStore(name, f)
+	if loaded {
+		log.Errorf("call func %s already loaded", name)
+	}
+}
+
+type Sender interface {
+	SendPrivateMessage(userId string, msg *ClientMessage) (string, error)
+	SendGroupMessage(groupID string, msg *ClientMessage) (string, error)
+}
+
+func (b *Bus) SendBinding(s Sender) {
+	b.CallFunc("send_private_msg", s.SendPrivateMessage)
+	b.CallFunc("send_group_msg", s.SendGroupMessage)
 }
