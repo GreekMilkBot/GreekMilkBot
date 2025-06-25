@@ -1,5 +1,7 @@
 # GreekMilkBot
 
+[中文](./README.zh.md)|[English](./README.md)
+
 > This project is still in its super duper early phase~ (￣ω￣;)
 > 
 > All APIs might change without warning because we're just that cool! (｀・ω・´)
