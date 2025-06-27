@@ -6,22 +6,21 @@ import (
 	"os"
 	"strings"
 
-	"github.com/GreekMilkBot/GreekMilkBot/pkg/models"
+	"github.com/GreekMilkBot/GreekMilkBot/adapters/onebot/v11/apis"
 
-	toolsMsg "github.com/GreekMilkBot/GreekMilkBot/tools/message"
+	_ "github.com/GreekMilkBot/GreekMilkBot/adapters"
+	"github.com/GreekMilkBot/GreekMilkBot/pkg/models"
+	"github.com/GreekMilkBot/GreekMilkBot/pkg/tools"
 
 	gmb "github.com/GreekMilkBot/GreekMilkBot"
-	v11 "github.com/GreekMilkBot/GreekMilkBot/adapters/onebot/v11"
-
 	"github.com/GreekMilkBot/GreekMilkBot/pkg/log"
-	_ "github.com/GreekMilkBot/GreekMilkBot/tests/common"
 	"go.uber.org/zap"
 )
 
 func main() {
 	ctx := context.Background()
 	testBot, err := gmb.NewGreekMilkBot(
-		gmb.WithAdapterURL(ctx, os.Getenv("TEST_BOT_URL")))
+		gmb.WithAdapterURL(ctx, os.Getenv("BOT_URL")))
 	if err != nil {
 		panic(err)
 	}
@@ -46,21 +45,21 @@ func main() {
 						if err != nil {
 							continue
 						}
-						contents[i] = v11.OneBotCustomContent{
+						contents[i] = apis.OneBotCustomContent{
 							Type: strings.TrimPrefix(item.Type, "onebot11_"),
 							Data: value,
 						}
 					}
 				}
 			}
-			clientMessage := toolsMsg.SenderMessage{
+			clientMessage := tools.SenderMessage{
 				QuoteID: "",
 				Message: &contents,
 			}
 			if message.Quote != nil {
 				clientMessage.QuoteID = message.Quote.ID
 			}
-			sender := toolsMsg.SenderClient(ctx)
+			sender := tools.SenderClient(ctx)
 			sendMessage, err := sender.SendMessage(&message, &clientMessage)
 			if err != nil {
 				log.Errorf("send message error %v", zap.Error(err))

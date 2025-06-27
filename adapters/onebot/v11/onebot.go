@@ -6,14 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"reflect"
 	"strconv"
 	"sync/atomic"
 	"time"
 
-	models2 "github.com/GreekMilkBot/GreekMilkBot/pkg/models"
+	"github.com/GreekMilkBot/GreekMilkBot/adapters/onebot/v11/apis"
 
-	toolsMsg "github.com/GreekMilkBot/GreekMilkBot/tools/message"
+	"github.com/GreekMilkBot/GreekMilkBot/pkg/tools"
+
+	bot_models "github.com/GreekMilkBot/GreekMilkBot/pkg/models"
 
 	"github.com/GreekMilkBot/GreekMilkBot/adapters/onebot/v11/internal/api"
 	"github.com/GreekMilkBot/GreekMilkBot/adapters/onebot/v11/internal/driver"
@@ -23,18 +24,7 @@ import (
 	"github.com/GreekMilkBot/GreekMilkBot/pkg/log"
 )
 
-type OneBotCustomContent struct {
-	Type string         `json:"type"`
-	Data map[string]any `json:"data"`
-}
-
-func (o OneBotCustomContent) String() string {
-	marshal, _ := json.Marshal(&o)
-	return string(marshal)
-}
-
 func init() {
-	models2.RegisterContent("onebot11_custom", reflect.TypeOf((*OneBotCustomContent)(nil)))
 	gmbcore.RegisterAdapter("onebot11", func(ctx context.Context, url url.URL) (gmbcore.Adapter, error) {
 		if url.Scheme != "ws" && url.Scheme != "wss" {
 			return nil, errors.New("unsupported scheme :" + url.Scheme)
@@ -68,7 +58,7 @@ func (a *OneBotV11Adapter) Bind(ctx *gmbcore.AdapterBus) error {
 	if a.bind.Swap(true) {
 		return errors.New("already bind")
 	}
-	ctx.BindTools(toolsMsg.Sender(a))
+	ctx.BindTools(tools.Sender(a))
 	return a.driver.Bind(func(msg []byte) {
 		log.Debugf("OneBotV11Adapter: Received message: %s", msg)
 		go func(m []byte) {
@@ -123,7 +113,7 @@ func (a *OneBotV11Adapter) processMessage(ctx *gmbcore.AdapterBus, msg []byte) e
 		ctx.SendMessage(*cMsg)
 	}
 	if e, ok := e.(event.NoticeEvent); ok {
-		ctx.SendEvent(models2.Event{
+		ctx.SendEvent(bot_models.Event{
 			Type: fmt.Sprintf("onebot11_%s", e.GetNoticeType()),
 			Data: e,
 		})
@@ -131,18 +121,18 @@ func (a *OneBotV11Adapter) processMessage(ctx *gmbcore.AdapterBus, msg []byte) e
 	return nil
 }
 
-func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*models2.Message, error) {
-	msg := &models2.Message{
+func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*bot_models.Message, error) {
+	msg := &bot_models.Message{
 		ID: fmt.Sprintf("%d", e.MessageID),
-		Owner: &models2.GuildMember{
-			User: &models2.User{
+		Owner: &bot_models.GuildMember{
+			User: &bot_models.User{
 				Id:     fmt.Sprintf("%d", e.Sender.UserId),
 				Name:   e.Sender.Nickname,
 				Avatar: fmt.Sprintf("https://q1.qlogo.cn/g?b=qq&nk=%d&s=256", e.Sender.UserId),
 			},
 			GuildRole: make([]string, 0),
 		},
-		Content: make(models2.Contents, 0),
+		Content: make(bot_models.Contents, 0),
 		Guild:   nil,
 		Quote:   nil,
 		Created: time.Unix(e.Time, 0),
@@ -154,7 +144,7 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*m
 			return nil, err
 		}
 		msg.MsgType = "guild"
-		msg.Guild = &models2.Guild{
+		msg.Guild = &bot_models.Guild{
 			Id:     fmt.Sprintf("%d", info.GroupID),
 			Name:   info.GroupName,
 			Avatar: fmt.Sprintf("https://p.qlogo.cn/gh/%d/%d/640", info.GroupID, info.GroupID),
@@ -181,15 +171,15 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*m
 			case "text":
 				last := len(msg.Content) - 1
 				if last >= 0 {
-					if f, ok := msg.Content[last].(models2.ContentText); ok {
+					if f, ok := msg.Content[last].(bot_models.ContentText); ok {
 						f.Text = f.Text + message.MsgData["text"].(string)
 						msg.Content[last] = f
 						continue
 					}
 				}
-				msg.Content = append(msg.Content, models2.ContentText{Text: message.MsgData["text"].(string)})
+				msg.Content = append(msg.Content, bot_models.ContentText{Text: message.MsgData["text"].(string)})
 			case "at":
-				var user *models2.User
+				var user *bot_models.User
 				qq := message.MsgData["qq"].(string)
 				if qq == "all" {
 					qq = "*"
@@ -199,21 +189,21 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*m
 					if err != nil {
 						return nil, err
 					}
-					user = &models2.User{
+					user = &bot_models.User{
 						Id:     fmt.Sprintf("%d", info.UserID),
 						Name:   info.Nickname,
 						Avatar: fmt.Sprintf("https://q1.qlogo.cn/g?b=qq&nk=%d&s=256", info.UserID),
 					}
 				}
-				msg.Content = append(msg.Content, models2.ContentAt{Uid: qq, User: user})
+				msg.Content = append(msg.Content, bot_models.ContentAt{Uid: qq, User: user})
 			case "image":
-				msg.Content = append(msg.Content, models2.ContentImage{
+				msg.Content = append(msg.Content, bot_models.ContentImage{
 					URL:     message.MsgData["url"].(string),
 					Summary: message.MsgData["summary"].(string),
 				})
 			default:
 				rawMsg, _ := json.Marshal(message.MsgData)
-				msg.Content = append(msg.Content, models2.ContentUnknown{
+				msg.Content = append(msg.Content, bot_models.ContentUnknown{
 					Type:  fmt.Sprintf("onebot11_%s", message.MsgType),
 					Value: string(rawMsg),
 				})
@@ -223,15 +213,15 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*m
 	return msg, nil
 }
 
-func (a *OneBotV11Adapter) SendPrivateMessage(userId string, msg *toolsMsg.SenderMessage) (string, error) {
+func (a *OneBotV11Adapter) SendPrivateMessage(userId string, msg *tools.SenderMessage) (string, error) {
 	return a.sendMessage(userId, "", msg)
 }
 
-func (a *OneBotV11Adapter) SendGroupMessage(groupID string, msg *toolsMsg.SenderMessage) (string, error) {
+func (a *OneBotV11Adapter) SendGroupMessage(groupID string, msg *tools.SenderMessage) (string, error) {
 	return a.sendMessage("", groupID, msg)
 }
 
-func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg *toolsMsg.SenderMessage) (string, error) {
+func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg *tools.SenderMessage) (string, error) {
 	var uid, gid uint64
 	if userId != "" {
 		i, err := strconv.ParseInt(userId, 10, 64)
@@ -258,7 +248,7 @@ func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg *tools
 	}
 	for _, content := range *msg.Message {
 		switch content := content.(type) {
-		case models2.ContentText:
+		case bot_models.ContentText:
 			last := len(message) - 1
 			if last > 0 && message[last].MsgType == "text" {
 				m := message[last]
@@ -272,7 +262,7 @@ func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg *tools
 					},
 				})
 			}
-		case models2.ContentAt:
+		case bot_models.ContentAt:
 			u := content.Uid
 			if u == "*" {
 				u = "all"
@@ -283,7 +273,7 @@ func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg *tools
 					"qq": u,
 				},
 			})
-		case models2.ContentImage:
+		case bot_models.ContentImage:
 			img := content
 			message = append(message, models.Message{
 				MsgType: "image",
@@ -291,7 +281,7 @@ func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg *tools
 					"file": img.URL,
 				},
 			})
-		case OneBotCustomContent:
+		case apis.OneBotCustomContent:
 			message = append(message, models.Message{
 				MsgType: content.Type,
 				MsgData: content.Data,

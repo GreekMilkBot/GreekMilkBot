@@ -19,6 +19,7 @@ const DEFAULT = "default"
 
 func init() {
 	_ = zap.RegisterEncoder("space", newSpaceEncoderFactory)
+	SetLevel(zap.DebugLevel)
 }
 
 func newSpaceEncoderFactory(cfg zapcore.EncoderConfig) (zapcore.Encoder, error) {

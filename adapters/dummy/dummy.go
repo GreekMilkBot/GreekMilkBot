@@ -11,9 +11,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/GreekMilkBot/GreekMilkBot/pkg/models"
+	"github.com/GreekMilkBot/GreekMilkBot/pkg/tools"
 
-	toolsMsg "github.com/GreekMilkBot/GreekMilkBot/tools/message"
+	"github.com/GreekMilkBot/GreekMilkBot/pkg/models"
 
 	"github.com/GreekMilkBot/GreekMilkBot/adapters/dummy/internal"
 	"github.com/GreekMilkBot/GreekMilkBot/adapters/dummy/internal/server"
@@ -82,7 +82,7 @@ func (d *DummyAdapter) Bind(ctx *core.AdapterBus) error {
 		}
 		ctx.SendMessage(*message)
 	}
-	ctx.BindTools(toolsMsg.Sender(d))
+	ctx.BindTools(tools.Sender(d))
 	return nil
 }
 
@@ -163,7 +163,7 @@ func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*m
 	return &result, nil
 }
 
-func (d *DummyAdapter) SendPrivateMessage(userId string, msg *toolsMsg.SenderMessage) (string, error) {
+func (d *DummyAdapter) SendPrivateMessage(userId string, msg *tools.SenderMessage) (string, error) {
 	// d.wrapper.queryPrivateSession(d.wrapper.Bot, userId)
 	// d.wrapper.pushMessage()
 	puts := covertMessage(msg.Message)
@@ -171,7 +171,7 @@ func (d *DummyAdapter) SendPrivateMessage(userId string, msg *toolsMsg.SenderMes
 	return d.wrapper.SendPrivateMessage(userId, msg.QuoteID, puts)
 }
 
-func (d *DummyAdapter) SendGroupMessage(groupID string, msg *toolsMsg.SenderMessage) (string, error) {
+func (d *DummyAdapter) SendGroupMessage(groupID string, msg *tools.SenderMessage) (string, error) {
 	puts := covertMessage(msg.Message)
 
 	return d.wrapper.SendGroupMessage(groupID, msg.QuoteID, puts)
