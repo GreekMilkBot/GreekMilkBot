@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	_ "github.com/GreekMilkBot/GreekMilkBot/adapter/standard"
-	"github.com/GreekMilkBot/GreekMilkBot/log"
+	_ "github.com/GreekMilkBot/GreekMilkBot/adapters"
+	"github.com/GreekMilkBot/GreekMilkBot/pkg/log"
 	"go.uber.org/zap"
 )
 
