@@ -1,11 +1,10 @@
-package bot
+package models
 
 import (
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
-	"time"
 )
 
 var (
@@ -87,18 +86,6 @@ func (contents *Contents) String() string {
 
 type Content interface {
 	fmt.Stringer
-}
-type Message struct {
-	ID    string       `json:"id"`
-	Owner *GuildMember `json:"user"`
-
-	MsgType string `json:"type"`
-	Guild   *Guild `json:"guild"`
-
-	Quote   *Message  `json:"quote,omitempty"`
-	Content Contents  `json:"content"`
-	Created time.Time `json:"created"`
-	Updated time.Time `json:"updated"`
 }
 
 type RawContent struct {

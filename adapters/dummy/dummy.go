@@ -11,16 +11,14 @@ import (
 	"os"
 	"strings"
 
+	"github.com/GreekMilkBot/GreekMilkBot/pkg/models"
+
 	toolsMsg "github.com/GreekMilkBot/GreekMilkBot/tools/message"
-
-	"github.com/GreekMilkBot/GreekMilkBot/pkg"
-	"github.com/GreekMilkBot/GreekMilkBot/pkg/bus"
-
-	"github.com/GreekMilkBot/GreekMilkBot/pkg/models/bot"
 
 	"github.com/GreekMilkBot/GreekMilkBot/adapters/dummy/internal"
 	"github.com/GreekMilkBot/GreekMilkBot/adapters/dummy/internal/server"
 	"github.com/GreekMilkBot/GreekMilkBot/adapters/dummy/static"
+	"github.com/GreekMilkBot/GreekMilkBot/pkg"
 	"github.com/GreekMilkBot/GreekMilkBot/pkg/log"
 )
 
@@ -75,7 +73,7 @@ type DummyAdapter struct {
 	wrapper *internal.Wrapper
 }
 
-func (d *DummyAdapter) Bind(ctx *bus.AdapterBus) error {
+func (d *DummyAdapter) Bind(ctx *core.AdapterBus) error {
 	d.wrapper.BindBotMessage = func(msg server.QueryMessageResp) {
 		message, err := d.Dummy2Message(msg, 5)
 		if err != nil {
@@ -88,16 +86,16 @@ func (d *DummyAdapter) Bind(ctx *bus.AdapterBus) error {
 	return nil
 }
 
-func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*bot.Message, error) {
+func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*models.Message, error) {
 	if depth == 0 {
 		return nil, errors.New("depth is zero")
 	}
 	content := msg.Content
 	depth = depth - 1
-	result := bot.Message{
+	result := models.Message{
 		ID: content.ID,
-		Owner: &bot.GuildMember{
-			User: &bot.User{
+		Owner: &models.GuildMember{
+			User: &models.User{
 				Id:     content.Sender.ID,
 				Name:   content.Sender.Name,
 				Avatar: content.Sender.Avatar,
@@ -109,7 +107,7 @@ func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*b
 	}
 	if msg.Type == "group" {
 		result.MsgType = "guild"
-		result.Guild = &bot.Guild{
+		result.Guild = &models.Guild{
 			Id:     msg.TargetID,
 			Name:   msg.TargetName,
 			Avatar: msg.TargetAvatar,
@@ -133,7 +131,7 @@ func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*b
 	for _, content := range msg.Content.Content {
 		switch content.Type {
 		case "text":
-			result.Content = append(result.Content, bot.ContentText{Text: content.Data})
+			result.Content = append(result.Content, models.ContentText{Text: content.Data})
 		case "image":
 			if strings.HasPrefix(content.Data, "data:") {
 				image, err := NewDataUriContentImage(content.Data)
@@ -142,7 +140,7 @@ func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*b
 				}
 				result.Content = append(result.Content, image)
 			} else {
-				result.Content = append(result.Content, bot.ContentImage{
+				result.Content = append(result.Content, models.ContentImage{
 					URL:     content.Data,
 					Summary: "",
 				})
@@ -152,9 +150,9 @@ func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*b
 			if err != nil {
 				return nil, err
 			}
-			result.Content = append(result.Content, bot.ContentAt{
+			result.Content = append(result.Content, models.ContentAt{
 				Uid: content.Data,
-				User: &bot.User{
+				User: &models.User{
 					Id:     content.Data,
 					Name:   u.Name,
 					Avatar: u.Avatar,
@@ -179,20 +177,20 @@ func (d *DummyAdapter) SendGroupMessage(groupID string, msg *toolsMsg.SenderMess
 	return d.wrapper.SendGroupMessage(groupID, msg.QuoteID, puts)
 }
 
-func covertMessage(msg *bot.Contents) []*bot.RawContent {
-	puts := make([]*bot.RawContent, 0)
+func covertMessage(msg *models.Contents) []*models.RawContent {
+	puts := make([]*models.RawContent, 0)
 	for _, content := range *msg {
 		switch it := content.(type) {
-		case bot.ContentText:
-			puts = append(puts, &bot.RawContent{
+		case models.ContentText:
+			puts = append(puts, &models.RawContent{
 				Type: "text", Data: it.Text,
 			})
-		case bot.ContentAt:
-			puts = append(puts, &bot.RawContent{
+		case models.ContentAt:
+			puts = append(puts, &models.RawContent{
 				Type: "at", Data: it.Uid,
 			})
-		case bot.ContentImage:
-			puts = append(puts, &bot.RawContent{
+		case models.ContentImage:
+			puts = append(puts, &models.RawContent{
 				Type: "image", Data: it.URL,
 			})
 		}
@@ -200,7 +198,7 @@ func covertMessage(msg *bot.Contents) []*bot.RawContent {
 	return puts
 }
 
-func NewDataUriContentImage(dataURI string) (*bot.ContentImage, error) {
+func NewDataUriContentImage(dataURI string) (*models.ContentImage, error) {
 	if !strings.HasPrefix(dataURI, "data:") {
 		return nil, errors.New("invalid data URI format: missing 'data:' prefix")
 	}
@@ -213,7 +211,7 @@ func NewDataUriContentImage(dataURI string) (*bot.ContentImage, error) {
 	dataPart := parts[1]
 	mediaType := strings.SplitN(mediaTypePart, ";", 2)
 	if len(mediaType) == 2 && mediaType[1] == "base64" {
-		image := bot.NewBase64ContentImage(
+		image := models.NewBase64ContentImage(
 			url.QueryEscape(mediaType[0]),
 			dataPart,
 			"",

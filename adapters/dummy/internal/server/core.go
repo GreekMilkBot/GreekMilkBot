@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GreekMilkBot/GreekMilkBot/pkg/models/bot"
+	"github.com/GreekMilkBot/GreekMilkBot/pkg/models"
 )
 
 type Server struct {
@@ -50,8 +50,8 @@ type MessageRefer struct {
 	MessageID string `json:"mid"`
 }
 type MessageContent struct {
-	Refer   *MessageRefer     `json:"refer,omitempty"`
-	Message []*bot.RawContent `json:"message"`
+	Refer   *MessageRefer        `json:"refer,omitempty"`
+	Message []*models.RawContent `json:"message"`
 }
 
 func (receiver *MessageRefer) toReferID() string {
@@ -221,11 +221,11 @@ type MessagesResp struct {
 	Content []MessageResp `json:"content"`
 }
 type MessageResp struct {
-	ID       string            `json:"id"`
-	Sender   UserResp          `json:"sender"`
-	ReferID  string            `json:"refer_id"`
-	Content  []*bot.RawContent `json:"content"`
-	CreateAt time.Time         `json:"created"`
+	ID       string               `json:"id"`
+	Sender   UserResp             `json:"sender"`
+	ReferID  string               `json:"refer_id"`
+	Content  []*models.RawContent `json:"content"`
+	CreateAt time.Time            `json:"created"`
 }
 
 func (s *Server) GetMessages(userID, sessionID string) (*MessagesResp, error) {
@@ -335,10 +335,10 @@ func (s *Server) QueryMessage(mid string) (*QueryMessageResp, error) {
 }
 
 type AddMessageReq struct {
-	UserID    string            `json:"user_id"`
-	SessionID string            `json:"session_id"`
-	ReferID   string            `json:"refer_id"`
-	Content   []*bot.RawContent `json:"content"`
+	UserID    string               `json:"user_id"`
+	SessionID string               `json:"session_id"`
+	ReferID   string               `json:"refer_id"`
+	Content   []*models.RawContent `json:"content"`
 }
 
 func (s *Server) AddMessage(msg AddMessageReq) (string, error) {

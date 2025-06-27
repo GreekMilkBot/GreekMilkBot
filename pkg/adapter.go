@@ -3,8 +3,6 @@ package core
 import (
 	"context"
 	"net/url"
-
-	"github.com/GreekMilkBot/GreekMilkBot/pkg/bus"
 )
 
 var adapters = make(map[string]AdapterHandler)
@@ -15,7 +13,7 @@ func GetAdapter(key string) (AdapterHandler, bool) {
 }
 
 type Adapter interface {
-	Bind(ctx *bus.AdapterBus) error
+	Bind(ctx *AdapterBus) error
 }
 
 type AdapterHandler func(ctx context.Context, url url.URL) (Adapter, error)

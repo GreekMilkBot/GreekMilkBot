@@ -1,4 +1,4 @@
-package bus
+package core
 
 import (
 	"context"
@@ -8,63 +8,76 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/GreekMilkBot/GreekMilkBot/pkg/models/bot"
-	"github.com/GreekMilkBot/GreekMilkBot/pkg/models/core"
+	"github.com/GreekMilkBot/GreekMilkBot/pkg/models"
 
 	"github.com/GreekMilkBot/GreekMilkBot/pkg/log"
 )
 
+type ActionResponse struct {
+	ID       string `json:"id"`
+	OK       bool   `json:"ok"`
+	ErrorMsg string `json:"error,omitempty"`
+
+	Data []string `json:"data,omitempty"`
+}
+
+type ActionRequest struct {
+	ID     string   `json:"id"`
+	Action string   `json:"action"`
+	Params []string `json:"params,omitempty"`
+}
+
 type AdapterBus struct {
 	ID string // bot id
 
-	tx chan<- core.Packet
-	rx chan core.ActionRequest
+	tx chan<- models.Packet
+	rx chan ActionRequest
 
 	context.Context
 
 	call *sync.Map
 }
 
-func NewAdapterBus(id string, ctx context.Context, tx chan core.Packet) *AdapterBus {
+func NewAdapterBus(id string, ctx context.Context, tx chan models.Packet) *AdapterBus {
 	bus := AdapterBus{
 		ID:      id,
 		Context: ctx,
 		tx:      tx,
-		rx:      make(chan core.ActionRequest, 100),
+		rx:      make(chan ActionRequest, 100),
 		call:    &sync.Map{},
 	}
 	go bus.receiveLoop()
 	return &bus
 }
 
-func (b *AdapterBus) SendMessage(message bot.Message) {
-	b.tx <- core.Packet{
+func (b *AdapterBus) SendMessage(message models.Message) {
+	b.tx <- models.Packet{
 		Plugin: b.ID,
-		Type:   core.PacketMessage,
+		Type:   models.PacketMessage,
 		Data:   message,
 	}
 }
 
-func (b *AdapterBus) SendEvent(event core.Event) {
-	b.tx <- core.Packet{
+func (b *AdapterBus) SendEvent(event models.Event) {
+	b.tx <- models.Packet{
 		Plugin: b.ID,
-		Type:   core.PacketAction,
+		Type:   models.PacketAction,
 		Data:   event,
 	}
 }
 
 func (b *AdapterBus) SendMeta(key string, value string) {
-	b.tx <- core.Packet{
+	b.tx <- models.Packet{
 		Plugin: b.ID,
-		Type:   core.PacketMeta,
-		Data: core.Meta{
+		Type:   models.PacketMeta,
+		Data: models.Meta{
 			Key:   key,
 			Value: value,
 		},
 	}
 }
 
-func (b *AdapterBus) NewRequest(req core.ActionRequest) {
+func (b *AdapterBus) NewRequest(req ActionRequest) {
 	b.rx <- req
 }
 
@@ -85,7 +98,7 @@ func (b *AdapterBus) receiveLoop() {
 	}
 }
 
-func (b *AdapterBus) exec(req core.ActionRequest, value any) {
+func (b *AdapterBus) exec(req ActionRequest, value any) {
 	fnValue := reflect.ValueOf(value)
 	fnType := fnValue.Type()
 	if len(req.Params) != fnType.NumIn() {
@@ -128,10 +141,10 @@ func (b *AdapterBus) exec(req core.ActionRequest, value any) {
 		}
 		results[i] = string(marshal)
 	}
-	b.tx <- core.Packet{
+	b.tx <- models.Packet{
 		Plugin: b.ID,
-		Type:   core.PacketAction,
-		Data: core.ActionResponse{
+		Type:   models.PacketAction,
+		Data: ActionResponse{
 			ID:       req.ID,
 			OK:       true,
 			ErrorMsg: "",
@@ -140,12 +153,12 @@ func (b *AdapterBus) exec(req core.ActionRequest, value any) {
 	}
 }
 
-func (b *AdapterBus) sendError(req core.ActionRequest, msg error) {
+func (b *AdapterBus) sendError(req ActionRequest, msg error) {
 	log.Errorf("Error: %v", msg)
-	b.tx <- core.Packet{
+	b.tx <- models.Packet{
 		Plugin: b.ID,
-		Type:   core.PacketAction,
-		Data: core.ActionResponse{
+		Type:   models.PacketAction,
+		Data: ActionResponse{
 			ID:       req.ID,
 			OK:       false,
 			ErrorMsg: msg.Error(),

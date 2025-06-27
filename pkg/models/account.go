@@ -1,4 +1,4 @@
-package bot
+package models
 
 // Guild 群聊
 type Guild struct {

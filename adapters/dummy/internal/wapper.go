@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/GreekMilkBot/GreekMilkBot/pkg/models/bot"
+	"github.com/GreekMilkBot/GreekMilkBot/pkg/models"
 
 	"github.com/GreekMilkBot/GreekMilkBot/adapters/dummy/internal/server"
 	"github.com/GreekMilkBot/GreekMilkBot/pkg/log"
@@ -80,7 +80,7 @@ func (t *Wrapper) handleMessage(r *http.Request) (any, error) {
 	return t.Server.QueryMessage(gid)
 }
 
-func (t *Wrapper) SendPrivateMessage(userID string, referID string, content []*bot.RawContent) (string, error) {
+func (t *Wrapper) SendPrivateMessage(userID string, referID string, content []*models.RawContent) (string, error) {
 	id, err := t.Server.GetOrCreatePrivateSessionID(t.Bot, userID)
 	if err != nil {
 		return "", err
@@ -93,7 +93,7 @@ func (t *Wrapper) SendPrivateMessage(userID string, referID string, content []*b
 	})
 }
 
-func (t *Wrapper) SendGroupMessage(id string, referID string, content []*bot.RawContent) (string, error) {
+func (t *Wrapper) SendGroupMessage(id string, referID string, content []*models.RawContent) (string, error) {
 	sid, err := t.Server.GetSessionIDByGroupID(id)
 	if err != nil {
 		return "", err

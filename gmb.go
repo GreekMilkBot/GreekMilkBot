@@ -13,24 +13,23 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/GreekMilkBot/GreekMilkBot/pkg/bus"
+	"github.com/GreekMilkBot/GreekMilkBot/pkg/models"
 
-	"github.com/GreekMilkBot/GreekMilkBot/pkg/models/bot"
-	"github.com/GreekMilkBot/GreekMilkBot/pkg/models/core"
+	core2 "github.com/GreekMilkBot/GreekMilkBot/pkg"
 
 	"github.com/GreekMilkBot/GreekMilkBot/pkg/log"
 )
 
 type (
-	BotMessageHandle func(ctx BotContext, message bot.Message)
-	BotEventHandle   func(ctx BotContext, event core.Event)
+	BotMessageHandle func(ctx BotContext, message models.Message)
+	BotEventHandle   func(ctx BotContext, event models.Event)
 )
 
 type GreekMilkBot struct {
 	config *Config
 
-	rx chan core.Packet
-	tx chan core.Packet
+	rx chan models.Packet
+	tx chan models.Packet
 
 	call *sync.Map
 	meta *sync.Map
@@ -52,8 +51,8 @@ func NewGreekMilkBot(calls ...GMBConfig) (*GreekMilkBot, error) {
 		config:  config,
 		call:    new(sync.Map),
 		meta:    new(sync.Map),
-		tx:      make(chan core.Packet, config.Cache),
-		rx:      make(chan core.Packet, config.Cache),
+		tx:      make(chan models.Packet, config.Cache),
+		rx:      make(chan models.Packet, config.Cache),
 		started: new(atomic.Bool),
 	}
 	return init, nil
@@ -66,10 +65,10 @@ func (g *GreekMilkBot) Run(ctx context.Context) error {
 	g.started.Store(true)
 	bootCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	adapters := make(map[string]*bus.AdapterBus)
+	adapters := make(map[string]*core2.AdapterBus)
 	for gid, adapt := range g.config.Adapters {
 		id := fmt.Sprintf("%d", gid)
-		adapterBus := bus.NewAdapterBus(id, bootCtx, g.rx)
+		adapterBus := core2.NewAdapterBus(id, bootCtx, g.rx)
 		g.meta.Store(adapterBus.ID, new(sync.Map))
 		adapters[adapterBus.ID] = adapterBus
 		if err := adapt.Bind(adapterBus); err != nil {
@@ -79,7 +78,7 @@ func (g *GreekMilkBot) Run(ctx context.Context) error {
 	return g.loop(ctx, adapters)
 }
 
-func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*bus.AdapterBus) error {
+func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*core2.AdapterBus) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -95,8 +94,8 @@ func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*bus.AdapterBus
 					Tools:     strings.Split(tools, ","),
 				}
 				switch event.Type {
-				case core.PacketMeta:
-					meta := event.Data.(core.Meta)
+				case models.PacketMeta:
+					meta := event.Data.(models.Meta)
 					var pluginMeta *sync.Map
 					m, ok := g.meta.Load(event.Plugin)
 					if !ok {
@@ -115,16 +114,16 @@ func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*bus.AdapterBus
 							pluginMeta.Delete(meta.Key)
 						}
 					}
-				case core.PacketMessage:
-					go g.handleMsg(ctx, event.Data.(bot.Message))
-				case core.PacketAction:
+				case models.PacketMessage:
+					go g.handleMsg(ctx, event.Data.(models.Message))
+				case models.PacketAction:
 					switch event.Data.(type) {
-					case core.Event:
-						go g.handleEvent(ctx, event.Data.(core.Event))
-					case core.ActionResponse:
-						resp := event.Data.(core.ActionResponse)
+					case models.Event:
+						go g.handleEvent(ctx, event.Data.(models.Event))
+					case core2.ActionResponse:
+						resp := event.Data.(core2.ActionResponse)
 						if value, loaded := g.call.LoadAndDelete(resp.ID); loaded {
-							vChan := value.(chan core.ActionResponse)
+							vChan := value.(chan core2.ActionResponse)
 							defer close(vChan)
 							select {
 							case vChan <- resp:
@@ -140,8 +139,8 @@ func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*bus.AdapterBus
 		case event := <-g.tx:
 			stat := gmap[event.Plugin]
 			switch event.Type {
-			case core.PacketAction:
-				stat.NewRequest(event.Data.(core.ActionRequest))
+			case models.PacketAction:
+				stat.NewRequest(event.Data.(core2.ActionRequest))
 			default:
 				log.Errorf("unknown event type %s (or not support this type)", event.Type)
 			}
@@ -200,12 +199,12 @@ func (g *GreekMilkBot) Call(pluginID string, key string, params []any, result []
 		}
 		paramsRaw[i] = string(f)
 	}
-	resultChan := make(chan core.ActionResponse)
+	resultChan := make(chan core2.ActionResponse)
 	g.call.Store(id, resultChan)
-	g.tx <- core.Packet{
+	g.tx <- models.Packet{
 		Plugin: pluginID,
-		Type:   core.PacketAction,
-		Data: core.ActionRequest{
+		Type:   models.PacketAction,
+		Data: core2.ActionRequest{
 			ID:     id,
 			Action: key,
 			Params: paramsRaw,
@@ -225,7 +224,7 @@ func (g *GreekMilkBot) Call(pluginID string, key string, params []any, result []
 	case <-time.After(timeout):
 		if value, loaded := g.call.LoadAndDelete(id); loaded {
 			// 方法未被处理
-			close(value.(chan core.ActionResponse))
+			close(value.(chan core2.ActionResponse))
 			return errors.ErrUnsupported
 		} else {
 			return context.DeadlineExceeded

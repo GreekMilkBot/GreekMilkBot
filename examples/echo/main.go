@@ -6,12 +6,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/GreekMilkBot/GreekMilkBot/pkg/models"
+
 	toolsMsg "github.com/GreekMilkBot/GreekMilkBot/tools/message"
 
 	gmb "github.com/GreekMilkBot/GreekMilkBot"
-	"github.com/GreekMilkBot/GreekMilkBot/pkg/models/bot"
-	"github.com/GreekMilkBot/GreekMilkBot/pkg/models/core"
-
 	v11 "github.com/GreekMilkBot/GreekMilkBot/adapters/onebot/v11"
 
 	"github.com/GreekMilkBot/GreekMilkBot/pkg/log"
@@ -26,20 +25,20 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	testBot.HandleMessageFunc(func(ctx gmb.BotContext, message bot.Message) {
+	testBot.HandleMessageFunc(func(ctx gmb.BotContext, message models.Message) {
 		marshal, _ := json.MarshalIndent(&message, "", "  ")
 		log.Infof(string(marshal))
 		if strings.HasPrefix(message.Content.String(), "echo ") {
 			contents := message.Content
 			for i, content := range contents {
-				if it, ok := content.(bot.ContentText); ok {
+				if it, ok := content.(models.ContentText); ok {
 					it.Text = strings.TrimPrefix(it.Text, "echo ")
 					contents[i] = it
 					break
 				}
 			}
 			for i, content := range contents {
-				if item, ok := content.(bot.ContentUnknown); ok {
+				if item, ok := content.(models.ContentUnknown); ok {
 					// 处理 onebot 的自定义消息
 					if strings.HasPrefix(item.Type, "onebot11_") {
 						value := make(map[string]interface{})
@@ -69,7 +68,7 @@ func main() {
 			log.Infof("新消息ID %s", sendMessage)
 		}
 	})
-	testBot.HandleEventFunc(func(ctx gmb.BotContext, event core.Event) {
+	testBot.HandleEventFunc(func(ctx gmb.BotContext, event models.Event) {
 		content, _ := json.Marshal(event.Data)
 		log.Infof("receive event[%v]: %s", event.Type, content)
 	})
