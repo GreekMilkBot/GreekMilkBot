@@ -359,6 +359,7 @@ app.component('chat', {
         const messages = ref({})
         const title = ref("")
         const refer = ref(null)
+        // TODO: 消息刷新导致 refer 被清理
         const refresh = function (props) {
             refer.value = null;
             if (props.session.type === "group") {
