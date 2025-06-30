@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"reflect"
 	"sync"
 
@@ -30,51 +31,43 @@ type ActionRequest struct {
 type AdapterBus struct {
 	ID string // bot id
 
-	tx chan<- models.Packet
-	rx chan ActionRequest
+	send func(packetType models.PacketType, data any)
+	rx   chan ActionRequest
 
 	context.Context
 
-	call *sync.Map
+	call      *sync.Map
+	resources map[string]models.ResourceProvider
 }
 
-func NewAdapterBus(id string, ctx context.Context, tx chan models.Packet) *AdapterBus {
+func NewAdapterBus(id string, ctx context.Context,
+	send func(packetType models.PacketType, data any),
+) *AdapterBus {
 	bus := AdapterBus{
-		ID:      id,
-		Context: ctx,
-		tx:      tx,
-		rx:      make(chan ActionRequest, 100),
-		call:    &sync.Map{},
+		ID:        id,
+		Context:   ctx,
+		send:      send,
+		rx:        make(chan ActionRequest, 100),
+		call:      &sync.Map{},
+		resources: make(map[string]models.ResourceProvider),
 	}
 	go bus.receiveLoop()
 	return &bus
 }
 
 func (b *AdapterBus) SendMessage(message models.Message) {
-	b.tx <- models.Packet{
-		Plugin: b.ID,
-		Type:   models.PacketMessage,
-		Data:   message,
-	}
+	b.send(models.PacketMessage, message)
 }
 
 func (b *AdapterBus) SendEvent(event models.Event) {
-	b.tx <- models.Packet{
-		Plugin: b.ID,
-		Type:   models.PacketAction,
-		Data:   event,
-	}
+	b.send(models.PacketAction, event)
 }
 
 func (b *AdapterBus) SendMeta(key string, value string) {
-	b.tx <- models.Packet{
-		Plugin: b.ID,
-		Type:   models.PacketMeta,
-		Data: models.Meta{
-			Key:   key,
-			Value: value,
-		},
-	}
+	b.send(models.PacketMeta, models.Meta{
+		Key:   key,
+		Value: value,
+	})
 }
 
 func (b *AdapterBus) NewRequest(req ActionRequest) {
@@ -141,33 +134,25 @@ func (b *AdapterBus) exec(req ActionRequest, value any) {
 		}
 		results[i] = string(marshal)
 	}
-	b.tx <- models.Packet{
-		Plugin: b.ID,
-		Type:   models.PacketAction,
-		Data: ActionResponse{
-			ID:       req.ID,
-			OK:       true,
-			ErrorMsg: "",
-			Data:     results,
-		},
-	}
+	b.send(models.PacketAction, ActionResponse{
+		ID:       req.ID,
+		OK:       true,
+		ErrorMsg: "",
+		Data:     results,
+	})
 }
 
 func (b *AdapterBus) sendError(req ActionRequest, msg error) {
 	log.Errorf("Error: %v", msg)
-	b.tx <- models.Packet{
-		Plugin: b.ID,
-		Type:   models.PacketAction,
-		Data: ActionResponse{
-			ID:       req.ID,
-			OK:       false,
-			ErrorMsg: msg.Error(),
-			Data:     make([]string, 0),
-		},
-	}
+	b.send(models.PacketAction, ActionResponse{
+		ID:       req.ID,
+		OK:       false,
+		ErrorMsg: msg.Error(),
+		Data:     make([]string, 0),
+	})
 }
 
-func (b *AdapterBus) CallFunc(name string, f any) {
+func (b *AdapterBus) callFunc(name string, f any) {
 	if f == nil || name == "" {
 		panic("name or func must not be nil")
 	}
@@ -186,6 +171,20 @@ type (
 )
 
 func (b *AdapterBus) BindTools(tools Tools) {
-	toolsID := tools(b.CallFunc)
+	toolsID := tools(b.callFunc)
 	b.SendMeta(".tools", toolsID)
+}
+
+type ResourceFormatter = func(body string) (*models.Resource, error)
+
+func (b *AdapterBus) BindResource(scheme string, provider models.ResourceProvider) ResourceFormatter {
+	b.resources[scheme] = provider
+	return func(body string) (*models.Resource, error) {
+		modUrl, err := url.Parse(fmt.Sprintf("%s+%s://%s", b.ID, scheme, body))
+		if err != nil {
+			return nil, err
+		}
+		resource := models.Resource(*modUrl)
+		return &resource, nil
+	}
 }

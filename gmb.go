@@ -15,7 +15,7 @@ import (
 
 	"github.com/GreekMilkBot/GreekMilkBot/pkg/models"
 
-	core2 "github.com/GreekMilkBot/GreekMilkBot/pkg"
+	gmbcore "github.com/GreekMilkBot/GreekMilkBot/pkg"
 
 	"github.com/GreekMilkBot/GreekMilkBot/pkg/log"
 )
@@ -65,10 +65,16 @@ func (g *GreekMilkBot) Run(ctx context.Context) error {
 	g.started.Store(true)
 	bootCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	adapters := make(map[string]*core2.AdapterBus)
+	adapters := make(map[string]*gmbcore.AdapterBus)
 	for gid, adapt := range g.config.Adapters {
 		id := fmt.Sprintf("%d", gid)
-		adapterBus := core2.NewAdapterBus(id, bootCtx, g.rx)
+		adapterBus := gmbcore.NewAdapterBus(id, bootCtx, func(packetType models.PacketType, data any) {
+			g.rx <- models.Packet{
+				Plugin: id,
+				Type:   packetType,
+				Data:   data,
+			}
+		})
 		g.meta.Store(adapterBus.ID, new(sync.Map))
 		adapters[adapterBus.ID] = adapterBus
 		if err := adapt.Bind(adapterBus); err != nil {
@@ -78,7 +84,7 @@ func (g *GreekMilkBot) Run(ctx context.Context) error {
 	return g.loop(ctx, adapters)
 }
 
-func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*core2.AdapterBus) error {
+func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*gmbcore.AdapterBus) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -120,10 +126,10 @@ func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*core2.AdapterB
 					switch event.Data.(type) {
 					case models.Event:
 						go g.handleEvent(ctx, event.Data.(models.Event))
-					case core2.ActionResponse:
-						resp := event.Data.(core2.ActionResponse)
+					case gmbcore.ActionResponse:
+						resp := event.Data.(gmbcore.ActionResponse)
 						if value, loaded := g.call.LoadAndDelete(resp.ID); loaded {
-							vChan := value.(chan core2.ActionResponse)
+							vChan := value.(chan gmbcore.ActionResponse)
 							defer close(vChan)
 							select {
 							case vChan <- resp:
@@ -140,7 +146,7 @@ func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*core2.AdapterB
 			stat := gmap[event.Plugin]
 			switch event.Type {
 			case models.PacketAction:
-				stat.NewRequest(event.Data.(core2.ActionRequest))
+				stat.NewRequest(event.Data.(gmbcore.ActionRequest))
 			default:
 				log.Errorf("unknown event type %s (or not support this type)", event.Type)
 			}
@@ -199,12 +205,12 @@ func (g *GreekMilkBot) Call(pluginID string, key string, params []any, result []
 		}
 		paramsRaw[i] = string(f)
 	}
-	resultChan := make(chan core2.ActionResponse)
+	resultChan := make(chan gmbcore.ActionResponse)
 	g.call.Store(id, resultChan)
 	g.tx <- models.Packet{
 		Plugin: pluginID,
 		Type:   models.PacketAction,
-		Data: core2.ActionRequest{
+		Data: gmbcore.ActionRequest{
 			ID:     id,
 			Action: key,
 			Params: paramsRaw,
@@ -224,7 +230,7 @@ func (g *GreekMilkBot) Call(pluginID string, key string, params []any, result []
 	case <-time.After(timeout):
 		if value, loaded := g.call.LoadAndDelete(id); loaded {
 			// 方法未被处理
-			close(value.(chan core2.ActionResponse))
+			close(value.(chan gmbcore.ActionResponse))
 			return errors.ErrUnsupported
 		} else {
 			return context.DeadlineExceeded
