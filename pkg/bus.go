@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
+	"io"
 	"reflect"
 	"sync"
 
@@ -36,12 +36,14 @@ type AdapterBus struct {
 
 	context.Context
 
-	call      *sync.Map
-	resources map[string]models.ResourceProvider
+	call *sync.Map
+
+	resources *sync.Map
 }
 
 func NewAdapterBus(id string, ctx context.Context,
 	send func(packetType models.PacketType, data any),
+	resources *sync.Map,
 ) *AdapterBus {
 	bus := AdapterBus{
 		ID:        id,
@@ -49,7 +51,7 @@ func NewAdapterBus(id string, ctx context.Context,
 		send:      send,
 		rx:        make(chan ActionRequest, 100),
 		call:      &sync.Map{},
-		resources: make(map[string]models.ResourceProvider),
+		resources: resources,
 	}
 	go bus.receiveLoop()
 	return &bus
@@ -175,16 +177,50 @@ func (b *AdapterBus) BindTools(tools Tools) {
 	b.SendMeta(".tools", toolsID)
 }
 
-type ResourceFormatter = func(body string) (*models.Resource, error)
+type ResourceFormatter = func(body string) (models.Resource, error)
 
 func (b *AdapterBus) BindResource(scheme string, provider models.ResourceProvider) ResourceFormatter {
-	b.resources[scheme] = provider
-	return func(body string) (*models.Resource, error) {
-		modUrl, err := url.Parse(fmt.Sprintf("%s+%s://%s", b.ID, scheme, body))
-		if err != nil {
-			return nil, err
-		}
-		resource := models.Resource(*modUrl)
-		return &resource, nil
+	child := new(sync.Map)
+	actual, loaded := b.resources.LoadOrStore(b.ID, child)
+	if loaded {
+		child = actual.(*sync.Map)
 	}
+	child.Store(scheme, provider)
+	return func(body string) (models.Resource, error) {
+		return models.Resource{
+			PluginID: b.ID,
+			Scheme:   scheme,
+			Body:     body,
+		}, nil
+	}
+}
+
+func (b *AdapterBus) ResourceMeta(resource *models.Resource) (*models.Metadata, error) {
+	provider, err := b.getProvider(resource)
+	if err != nil {
+		return nil, err
+	}
+	return provider.Metadata(resource.Scheme, resource.Body)
+}
+
+func (b *AdapterBus) ResourceBlob(resource *models.Resource) (io.ReadCloser, error) {
+	provider, err := b.getProvider(resource)
+	if err != nil {
+		return nil, err
+	}
+	return provider.Reader(resource.Scheme, resource.Body)
+}
+
+func (b *AdapterBus) getProvider(resource *models.Resource) (models.ResourceProvider, error) {
+	value, ok := b.resources.Load(resource.PluginID)
+	if !ok {
+		return nil, errors.New("plugin not found:" + resource.PluginID)
+	}
+	items := value.(*sync.Map)
+	load, ok := items.Load(resource.Scheme)
+	if !ok {
+		return nil, errors.New("scheme not found:" + resource.Scheme)
+	}
+	provider := load.(models.ResourceProvider)
+	return provider, nil
 }

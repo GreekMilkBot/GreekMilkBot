@@ -23,15 +23,8 @@ func (c ContentAt) String() string {
 }
 
 type ContentImage struct {
-	URL     string `json:"url"`
-	Summary string `json:"summary"`
-}
-
-func NewBase64ContentImage(mediaType, data, summary string) ContentImage {
-	return ContentImage{
-		URL:     fmt.Sprintf("base64://%s?ContentType=%s", data, mediaType),
-		Summary: summary,
-	}
+	Resource Resource `json:"data"`
+	Summary  string   `json:"summary"`
 }
 
 func (c ContentImage) String() string {

@@ -1,17 +1,19 @@
 package dummy
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/GreekMilkBot/GreekMilkBot/pkg/tools"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
-
-	"github.com/GreekMilkBot/GreekMilkBot/pkg/tools"
 
 	"github.com/GreekMilkBot/GreekMilkBot/pkg/models"
 
@@ -64,16 +66,68 @@ func init() {
 			_ = http.Serve(listen, wrapper)
 		}()
 		return &DummyAdapter{
-			wrapper,
+			wrapper: wrapper,
 		}, nil
 	})
 }
 
 type DummyAdapter struct {
-	wrapper *internal.Wrapper
+	wrapper        *internal.Wrapper
+	imageFormatter core.ResourceFormatter
+	ctx            *core.AdapterBus
+}
+
+func (d *DummyAdapter) Metadata(scheme, body string) (*models.Metadata, error) {
+	if scheme != "image" {
+		return nil, errors.New("unknown scheme :" + scheme)
+	}
+	parse, err := url.Parse(body)
+	if err != nil {
+		return nil, err
+	}
+	switch parse.Scheme {
+	case "base64":
+		data, err := base64.URLEncoding.DecodeString(parse.Path)
+		if err != nil {
+			return nil, err
+		}
+		return &models.Metadata{
+			Name:      "",
+			Size:      int64(len(data)),
+			MediaType: parse.Query().Get("media-type"),
+		}, nil
+	case "http", "https":
+		return models.HttpMetadata(http.DefaultClient, body)
+	default:
+		return nil, errors.New("unknown scheme :" + parse.Scheme)
+	}
+}
+
+func (d *DummyAdapter) Reader(scheme, body string) (io.ReadCloser, error) {
+	if scheme != "image" {
+		return nil, errors.New("unknown scheme :" + scheme)
+	}
+	parse, err := url.Parse(body)
+	if err != nil {
+		return nil, err
+	}
+	switch parse.Scheme {
+	case "base64":
+		data, err := base64.URLEncoding.DecodeString(parse.Path)
+		if err != nil {
+			return nil, err
+		}
+		return io.NopCloser(bytes.NewBuffer(data)), nil
+	case "http", "https":
+		return models.HttpReader(http.DefaultClient, body)
+	default:
+		return nil, errors.New("unknown scheme :" + parse.Scheme)
+	}
 }
 
 func (d *DummyAdapter) Bind(ctx *core.AdapterBus) error {
+	d.ctx = ctx
+	d.imageFormatter = ctx.BindResource("image", d)
 	d.wrapper.BindBotMessage = func(msg server.QueryMessageResp) {
 		message, err := d.Dummy2Message(msg, 5)
 		if err != nil {
@@ -133,18 +187,14 @@ func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*m
 		case "text":
 			result.Content = append(result.Content, models.ContentText{Text: content.Data})
 		case "image":
-			if strings.HasPrefix(content.Data, "data:") {
-				image, err := NewDataUriContentImage(content.Data)
-				if err != nil {
-					return nil, err
-				}
-				result.Content = append(result.Content, image)
-			} else {
-				result.Content = append(result.Content, models.ContentImage{
-					URL:     content.Data,
-					Summary: "",
-				})
+			bind, err := d.imageFormatter(content.Data)
+			if err != nil {
+				return nil, err
 			}
+			result.Content = append(result.Content, models.ContentImage{
+				Resource: bind,
+				Summary:  "",
+			})
 		case "at":
 			u, err := d.wrapper.Server.GetUser(content.Data)
 			if err != nil {
@@ -166,18 +216,17 @@ func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*m
 func (d *DummyAdapter) SendPrivateMessage(userId string, msg *tools.SenderMessage) (string, error) {
 	// d.wrapper.queryPrivateSession(d.wrapper.Bot, userId)
 	// d.wrapper.pushMessage()
-	puts := covertMessage(msg.Message)
+	puts := d.covertMessage(msg.Message)
 
 	return d.wrapper.SendPrivateMessage(userId, msg.QuoteID, puts)
 }
 
 func (d *DummyAdapter) SendGroupMessage(groupID string, msg *tools.SenderMessage) (string, error) {
-	puts := covertMessage(msg.Message)
-
+	puts := d.covertMessage(msg.Message)
 	return d.wrapper.SendGroupMessage(groupID, msg.QuoteID, puts)
 }
 
-func covertMessage(msg *models.Contents) []*models.RawContent {
+func (d *DummyAdapter) covertMessage(msg *models.Contents) []*models.RawContent {
 	puts := make([]*models.RawContent, 0)
 	for _, content := range *msg {
 		switch it := content.(type) {
@@ -190,33 +239,23 @@ func covertMessage(msg *models.Contents) []*models.RawContent {
 				Type: "at", Data: it.Uid,
 			})
 		case models.ContentImage:
+			meta, err := d.ctx.ResourceMeta(&it.Resource)
+			if err != nil {
+				continue
+			}
+			blob, err := d.ctx.ResourceBlob(&it.Resource)
+			if err != nil {
+				continue
+			}
+			all, err := io.ReadAll(blob)
+			blob.Close()
+			if err != nil {
+				continue
+			}
 			puts = append(puts, &models.RawContent{
-				Type: "image", Data: it.URL,
+				Type: "image", Data: fmt.Sprintf("data:%s;base64,%s", meta.MediaType, base64.URLEncoding.EncodeToString(all)),
 			})
 		}
 	}
 	return puts
-}
-
-func NewDataUriContentImage(dataURI string) (*models.ContentImage, error) {
-	if !strings.HasPrefix(dataURI, "data:") {
-		return nil, errors.New("invalid data URI format: missing 'data:' prefix")
-	}
-	parts := strings.SplitN(dataURI[5:], ",", 2)
-	if len(parts) != 2 {
-		return nil, errors.New("invalid data URI format: missing comma separator")
-	}
-
-	mediaTypePart := parts[0]
-	dataPart := parts[1]
-	mediaType := strings.SplitN(mediaTypePart, ";", 2)
-	if len(mediaType) == 2 && mediaType[1] == "base64" {
-		image := models.NewBase64ContentImage(
-			url.QueryEscape(mediaType[0]),
-			dataPart,
-			"",
-		)
-		return &image, nil
-	}
-	return nil, errors.New("unsupported data URI format: must be base64 encoded")
 }

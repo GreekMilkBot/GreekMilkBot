@@ -2,9 +2,12 @@ package v11
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/GreekMilkBot/GreekMilkBot/adapters/onebot/v11/internal/utils"
+	"io"
 	"net/url"
 	"strconv"
 	"sync/atomic"
@@ -41,8 +44,24 @@ type OneBotV11Adapter struct {
 	actions *api.OneBotV11Actions
 	selfId  *atomic.Uint64
 
-	bind   *atomic.Bool
-	driver *driver.WebSocketDriver
+	bind           *atomic.Bool
+	driver         *driver.WebSocketDriver
+	ctx            *gmbcore.AdapterBus
+	imageFormatter gmbcore.ResourceFormatter
+}
+
+func (a *OneBotV11Adapter) Metadata(scheme, body string) (*bot_models.Metadata, error) {
+	if scheme != "image" {
+		return nil, errors.New("unsupported scheme :" + scheme)
+	}
+	return bot_models.HttpMetadata(utils.OneBotHttpClient, body)
+}
+
+func (a *OneBotV11Adapter) Reader(scheme, body string) (io.ReadCloser, error) {
+	if scheme != "image" {
+		return nil, errors.New("unsupported scheme :" + scheme)
+	}
+	return bot_models.HttpReader(utils.OneBotHttpClient, body)
 }
 
 func NewOneBotV11Adapter(driver *driver.WebSocketDriver) *OneBotV11Adapter {
@@ -58,6 +77,8 @@ func (a *OneBotV11Adapter) Bind(ctx *gmbcore.AdapterBus) error {
 	if a.bind.Swap(true) {
 		return errors.New("already bind")
 	}
+	a.ctx = ctx
+	a.imageFormatter = ctx.BindResource("image", a)
 	ctx.BindTools(tools.Sender(a))
 	return a.driver.Bind(func(msg []byte) {
 		log.Debugf("OneBotV11Adapter: Received message: %s", msg)
@@ -197,9 +218,13 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*b
 				}
 				msg.Content = append(msg.Content, bot_models.ContentAt{Uid: qq, User: user})
 			case "image":
+				formatter, err := a.imageFormatter(message.MsgData["url"].(string))
+				if err != nil {
+					return nil, err
+				}
 				msg.Content = append(msg.Content, bot_models.ContentImage{
-					URL:     message.MsgData["url"].(string),
-					Summary: message.MsgData["summary"].(string),
+					Resource: formatter,
+					Summary:  message.MsgData["summary"].(string),
 				})
 			default:
 				rawMsg, _ := json.Marshal(message.MsgData)
@@ -275,12 +300,30 @@ func (a *OneBotV11Adapter) sendMessage(userId string, groupId string, msg *tools
 			})
 		case bot_models.ContentImage:
 			img := content
-			message = append(message, models.Message{
-				MsgType: "image",
-				MsgData: map[string]interface{}{
-					"file": img.URL,
-				},
-			})
+			if img.Resource.PluginID == a.ctx.ID {
+				message = append(message, models.Message{
+					MsgType: "image",
+					MsgData: map[string]interface{}{
+						"file": img.Resource.Body,
+					},
+				})
+			} else {
+				blob, err := a.ctx.ResourceBlob(&img.Resource)
+				if err != nil {
+					return "", err
+				}
+				all, err := io.ReadAll(blob)
+				_ = blob.Close()
+				if err != nil {
+					return "", err
+				}
+				message = append(message, models.Message{
+					MsgType: "image",
+					MsgData: map[string]interface{}{
+						"file": fmt.Sprintf("base64://%s", base64.URLEncoding.EncodeToString(all)),
+					},
+				})
+			}
 		case apis.OneBotCustomContent:
 			message = append(message, models.Message{
 				MsgType: content.Type,

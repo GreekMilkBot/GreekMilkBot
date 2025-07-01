@@ -37,6 +37,8 @@ type GreekMilkBot struct {
 	handleMsg   BotMessageHandle
 	handleEvent BotEventHandle
 
+	resources *sync.Map
+
 	started *atomic.Bool
 }
 
@@ -48,12 +50,13 @@ func NewGreekMilkBot(calls ...GMBConfig) (*GreekMilkBot, error) {
 		}
 	}
 	init := &GreekMilkBot{
-		config:  config,
-		call:    new(sync.Map),
-		meta:    new(sync.Map),
-		tx:      make(chan models.Packet, config.Cache),
-		rx:      make(chan models.Packet, config.Cache),
-		started: new(atomic.Bool),
+		config:    config,
+		call:      new(sync.Map),
+		meta:      new(sync.Map),
+		tx:        make(chan models.Packet, config.Cache),
+		rx:        make(chan models.Packet, config.Cache),
+		started:   new(atomic.Bool),
+		resources: new(sync.Map),
 	}
 	return init, nil
 }
@@ -74,7 +77,7 @@ func (g *GreekMilkBot) Run(ctx context.Context) error {
 				Type:   packetType,
 				Data:   data,
 			}
-		})
+		}, g.resources)
 		g.meta.Store(adapterBus.ID, new(sync.Map))
 		adapters[adapterBus.ID] = adapterBus
 		if err := adapt.Bind(adapterBus); err != nil {

@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-var OldHttpClient = httpClient()
+var OneBotHttpClient = httpClient()
 
 // https://staging.v2ex.com/t/1028997
 func httpClient() *http.Client {
