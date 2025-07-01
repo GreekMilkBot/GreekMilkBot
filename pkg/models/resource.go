@@ -19,10 +19,6 @@ type Metadata struct {
 	MediaType string `json:"media_type,omitempty"` // 参数为尽力提供，可能不存在
 }
 
-type ResourceProviderFinder interface {
-	QueryResource(resource *Resource) (ResourceProvider, error)
-}
-
 type ResourceProviderManager interface {
 	ResourceProviderFinder
 	RegisterResource(int, string, ResourceProvider)
@@ -30,22 +26,26 @@ type ResourceProviderManager interface {
 
 type ResourceProviderManagerImpl struct {
 	ResourceProviderManager
-	ResourceProviderFinderImpl
-}
-type ResourceProviderFinderImpl struct {
-	ResourceProviderManager
 }
 
-func (b *ResourceProviderManagerImpl) ResourceMeta(resource *Resource) (*Metadata, error) {
-	provider, err := b.QueryResource(resource)
+type ResourceProviderFinder interface {
+	QueryResource(resource *Resource) (ResourceProvider, error)
+}
+
+type ResourceProviderFinderImpl struct {
+	Finder ResourceProviderFinder
+}
+
+func (b *ResourceProviderFinderImpl) ResourceMeta(resource *Resource) (*Metadata, error) {
+	provider, err := b.Finder.QueryResource(resource)
 	if err != nil {
 		return nil, err
 	}
 	return provider.Metadata(resource.Scheme, resource.Body)
 }
 
-func (b *ResourceProviderManagerImpl) ResourceBlob(resource *Resource) (io.ReadCloser, error) {
-	provider, err := b.QueryResource(resource)
+func (b *ResourceProviderFinderImpl) ResourceBlob(resource *Resource) (io.ReadCloser, error) {
+	provider, err := b.Finder.QueryResource(resource)
 	if err != nil {
 		return nil, err
 	}

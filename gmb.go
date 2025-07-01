@@ -50,9 +50,9 @@ type GreekMilkBot struct {
 	rx chan models.Packet
 	tx chan models.Packet
 
-	call      *sync.Map
-	handleMsg BotMessageHandle
+	call *sync.Map
 
+	handleMsg   BotMessageHandle
 	handleEvent BotEventHandle
 
 	started *atomic.Bool
@@ -77,14 +77,15 @@ func NewGreekMilkBot(calls ...GMBConfig) (*GreekMilkBot, error) {
 }
 
 func (g *GreekMilkBot) Run(ctx context.Context) error {
-	if g.started.Load() {
+	if g.started.Swap(true) {
 		return errors.New("already started")
 	}
-	g.started.Store(true)
 	bootCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	for gid, adapt := range g.plugins {
-		adapt.Bus = gmbcore.NewAdapterBus(bootCtx, gid, g, func(packetType models.PacketType, data any) {
+		adapt.Bus = gmbcore.NewAdapterBus(bootCtx, gid, &resManager{
+			plugins: &g.plugins,
+		}, func(packetType models.PacketType, data any) {
 			g.rx <- models.Packet{
 				Plugin: gid,
 				Type:   packetType,
@@ -112,7 +113,9 @@ func (g *GreekMilkBot) loop(ctx context.Context) error {
 					GMBSender: g,
 					Tools:     plugin.Tools.ToSlice(),
 					ResourceProviderFinderImpl: models.ResourceProviderFinderImpl{
-						ResourceProviderManager: g,
+						Finder: &resManager{
+							plugins: &g.plugins,
+						},
 					},
 				}
 				switch event.Type {
@@ -237,8 +240,16 @@ func (g *GreekMilkBot) GetMeta(botID int, key string) (string, bool) {
 	return "", false
 }
 
-func (g *GreekMilkBot) QueryResource(resource *models.Resource) (models.ResourceProvider, error) {
-	plugin := g.plugins[resource.PluginID]
+type GMBSender interface {
+	Call(pluginID int, key string, params []any, result []any, timeout time.Duration) error
+}
+
+type resManager struct {
+	plugins *[]*WithPlugin
+}
+
+func (g *resManager) QueryResource(resource *models.Resource) (models.ResourceProvider, error) {
+	plugin := (*g.plugins)[resource.PluginID]
 	if plugin == nil {
 		return nil, errors.New(fmt.Sprintf("plugin not found: %d", resource.PluginID))
 	}
@@ -249,8 +260,8 @@ func (g *GreekMilkBot) QueryResource(resource *models.Resource) (models.Resource
 	return value.(models.ResourceProvider), nil
 }
 
-func (g *GreekMilkBot) RegisterResource(id int, scheme string, provider models.ResourceProvider) {
-	plugin := g.plugins[id]
+func (g *resManager) RegisterResource(id int, scheme string, provider models.ResourceProvider) {
+	plugin := (*g.plugins)[id]
 	if plugin == nil {
 		panic(fmt.Sprintf("plugin id %d not found", id))
 	}
@@ -258,8 +269,4 @@ func (g *GreekMilkBot) RegisterResource(id int, scheme string, provider models.R
 		panic("scheme already registered: " + scheme)
 	}
 	log.Debugf("add resource scheme: %d#%s", id, scheme)
-}
-
-type GMBSender interface {
-	Call(pluginID int, key string, params []any, result []any, timeout time.Duration) error
 }

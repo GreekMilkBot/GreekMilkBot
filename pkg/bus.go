@@ -30,28 +30,28 @@ type ActionRequest struct {
 type PluginBus struct {
 	context.Context
 
-	ID   int // bot id
-	send func(packetType models.PacketType, data any)
-	rx   chan ActionRequest
-	call *sync.Map
-	*models.ResourceProviderManagerImpl
+	ID       int // bot id
+	send     func(packetType models.PacketType, data any)
+	rx       chan ActionRequest
+	call     *sync.Map
+	resource models.ResourceProviderManager
+	*models.ResourceProviderFinderImpl
 }
 
-func NewAdapterBus(ctx context.Context, id int,
+func NewAdapterBus(ctx context.Context,
+	id int,
 	resources models.ResourceProviderManager,
 	send func(packetType models.PacketType, data any),
 ) *PluginBus {
 	bus := PluginBus{
-		ID:      id,
-		Context: ctx,
-		send:    send,
-		rx:      make(chan ActionRequest, 100),
-		call:    new(sync.Map),
-		ResourceProviderManagerImpl: &models.ResourceProviderManagerImpl{
-			ResourceProviderManager: resources,
-			ResourceProviderFinderImpl: models.ResourceProviderFinderImpl{
-				ResourceProviderManager: resources,
-			},
+		ID:       id,
+		Context:  ctx,
+		send:     send,
+		rx:       make(chan ActionRequest, 100),
+		call:     new(sync.Map),
+		resource: resources,
+		ResourceProviderFinderImpl: &models.ResourceProviderFinderImpl{
+			Finder: resources,
 		},
 	}
 	go bus.receiveLoop()
@@ -181,7 +181,7 @@ func (b *PluginBus) BindTools(tools Tools) {
 type ResourceFormatter = func(body string) (models.Resource, error)
 
 func (b *PluginBus) BindResource(scheme string, provider models.ResourceProvider) ResourceFormatter {
-	b.RegisterResource(b.ID, scheme, provider)
+	b.resource.RegisterResource(b.ID, scheme, provider)
 	return func(body string) (models.Resource, error) {
 		return models.Resource{
 			PluginID: b.ID,
