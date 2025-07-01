@@ -5,22 +5,22 @@ import (
 	"net/url"
 )
 
-var adapters = make(map[string]AdapterHandler)
+var plugins = make(map[string]PluginHandler)
 
-func GetAdapter(key string) (AdapterHandler, bool) {
-	handler, ok := adapters[key]
+func GetAdapter(key string) (PluginHandler, bool) {
+	handler, ok := plugins[key]
 	return handler, ok
 }
 
-type Adapter interface {
-	Bind(ctx *AdapterBus) error
+type Plugin interface {
+	Bind(ctx *PluginBus) error
 }
 
-type AdapterHandler func(ctx context.Context, url url.URL) (Adapter, error)
+type PluginHandler func(ctx context.Context, url url.URL) (Plugin, error)
 
-func RegisterAdapter(name string, adapter AdapterHandler) {
-	if adapters[name] != nil {
+func RegisterAdapter(name string, adapter PluginHandler) {
+	if plugins[name] != nil {
 		panic("duplicate adapter name: " + name)
 	}
-	adapters[name] = adapter
+	plugins[name] = adapter
 }

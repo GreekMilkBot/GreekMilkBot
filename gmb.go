@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
-	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	mapset "github.com/deckarep/golang-set/v2"
 
 	"github.com/GreekMilkBot/GreekMilkBot/pkg/models"
 
@@ -25,39 +26,53 @@ type (
 	BotEventHandle   func(ctx BotContext, event models.Event)
 )
 
+type WithPlugin struct {
+	gmbcore.Plugin
+	Bus       *gmbcore.PluginBus // 每个消息通信上下文
+	Meta      *sync.Map          // 元数据
+	Tools     mapset.Set[string] // 可用的工具包检查
+	Resources *sync.Map          // 注册的资源解析器
+}
+
+func NewPlugin(p gmbcore.Plugin) *WithPlugin {
+	return &WithPlugin{
+		Plugin:    p,
+		Meta:      &sync.Map{},
+		Tools:     mapset.NewThreadUnsafeSet[string](),
+		Resources: new(sync.Map),
+	}
+}
+
 type GreekMilkBot struct {
-	config *Config
+	plugins []*WithPlugin
+	cache   int
 
 	rx chan models.Packet
 	tx chan models.Packet
 
-	call *sync.Map
-	meta *sync.Map
+	call      *sync.Map
+	handleMsg BotMessageHandle
 
-	handleMsg   BotMessageHandle
 	handleEvent BotEventHandle
-
-	resources *sync.Map
 
 	started *atomic.Bool
 }
 
 func NewGreekMilkBot(calls ...GMBConfig) (*GreekMilkBot, error) {
-	config := DefaultConfig()
+	init := &GreekMilkBot{
+		call:    new(sync.Map),
+		started: new(atomic.Bool),
+		plugins: make([]*WithPlugin, 0),
+		cache:   100,
+	}
 	for _, call := range calls {
-		if err := call(config); err != nil {
+		if err := call(init); err != nil {
 			return nil, err
 		}
 	}
-	init := &GreekMilkBot{
-		config:    config,
-		call:      new(sync.Map),
-		meta:      new(sync.Map),
-		tx:        make(chan models.Packet, config.Cache),
-		rx:        make(chan models.Packet, config.Cache),
-		started:   new(atomic.Bool),
-		resources: new(sync.Map),
-	}
+	init.tx = make(chan models.Packet, init.cache)
+	init.rx = make(chan models.Packet, init.cache)
+
 	return init, nil
 }
 
@@ -68,59 +83,59 @@ func (g *GreekMilkBot) Run(ctx context.Context) error {
 	g.started.Store(true)
 	bootCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	adapters := make(map[string]*gmbcore.AdapterBus)
-	for gid, adapt := range g.config.Adapters {
-		id := fmt.Sprintf("%d", gid)
-		adapterBus := gmbcore.NewAdapterBus(id, bootCtx, func(packetType models.PacketType, data any) {
+	for gid, adapt := range g.plugins {
+		adapt.Bus = gmbcore.NewAdapterBus(bootCtx, gid, g, func(packetType models.PacketType, data any) {
 			g.rx <- models.Packet{
-				Plugin: id,
+				Plugin: gid,
 				Type:   packetType,
 				Data:   data,
 			}
-		}, g.resources)
-		g.meta.Store(adapterBus.ID, new(sync.Map))
-		adapters[adapterBus.ID] = adapterBus
-		if err := adapt.Bind(adapterBus); err != nil {
+		})
+		if err := adapt.Bind(adapt.Bus); err != nil {
 			return errors.Join(err, fmt.Errorf("plugin #%d Errorf", gid))
 		}
 	}
-	return g.loop(ctx, adapters)
+	return g.loop(ctx)
 }
 
-func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*gmbcore.AdapterBus) error {
+func (g *GreekMilkBot) loop(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case event := <-g.rx:
-			stat := gmap[event.Plugin]
+			plugin := g.plugins[event.Plugin]
 			go func() {
-				tools, _ := g.GetMeta(event.Plugin, ".tools")
 				ctx := BotContext{
 					Context:   ctx,
-					BotID:     stat.ID,
+					BotID:     event.Plugin,
 					GMBSender: g,
-					Tools:     strings.Split(tools, ","),
+					Tools:     plugin.Tools.ToSlice(),
+					ResourceProviderFinderImpl: models.ResourceProviderFinderImpl{
+						ResourceProviderManager: g,
+					},
 				}
 				switch event.Type {
 				case models.PacketMeta:
 					meta := event.Data.(models.Meta)
-					var pluginMeta *sync.Map
-					m, ok := g.meta.Load(event.Plugin)
-					if !ok {
-						log.Errorf("plugin %s not found", event.Plugin)
-						return
-					} else {
-						pluginMeta = m.(*sync.Map)
-					}
 					switch meta.Key {
 					case ".tools":
-						g.addToolsMeta(event.Plugin, meta.Value, pluginMeta)
+						toolID := meta.Value
+						if strings.Contains(toolID, ",") || strings.Contains(toolID, " ") {
+							panic("tools id is not valid :" + toolID)
+							return
+						}
+						if !plugin.Tools.Contains(meta.Value) {
+							plugin.Tools.Add(meta.Value)
+							log.Debugf("#%d add tool: %s , available tools: %v", event.Plugin, toolID, plugin.Tools.String())
+						} else {
+							log.Warnf("#%d tool[%s] already exists", event.Plugin, toolID)
+						}
 					default:
 						if meta.Value != "" {
-							pluginMeta.Store(meta.Key, meta.Value)
+							plugin.Meta.Store(meta.Key, meta.Value)
 						} else {
-							pluginMeta.Delete(meta.Key)
+							plugin.Meta.Delete(meta.Key)
 						}
 					}
 				case models.PacketMessage:
@@ -146,40 +161,13 @@ func (g *GreekMilkBot) loop(ctx context.Context, gmap map[string]*gmbcore.Adapte
 				}
 			}()
 		case event := <-g.tx:
-			stat := gmap[event.Plugin]
+			plugin := g.plugins[event.Plugin]
 			switch event.Type {
 			case models.PacketAction:
-				stat.NewRequest(event.Data.(gmbcore.ActionRequest))
+				plugin.Bus.NewRequest(event.Data.(gmbcore.ActionRequest))
 			default:
 				log.Errorf("unknown event type %s (or not support this type)", event.Type)
 			}
-		}
-	}
-}
-
-func (g *GreekMilkBot) addToolsMeta(pluginID, toolID string, pluginMeta *sync.Map) {
-	if strings.Contains(toolID, ",") || strings.Contains(toolID, " ") {
-		panic("tools id is not valid :" + toolID)
-		return
-	}
-	for {
-		tools := make([]string, 0)
-		var old string
-		if value, ok := pluginMeta.LoadOrStore(".tools", toolID); ok {
-			old = value.(string)
-			tools = append(tools, strings.Split(old, ",")...)
-		} else {
-			log.Debugf("#%s add tool: %s", pluginID, toolID)
-			break
-		}
-		if slices.Contains(tools, toolID) {
-			log.Warnf("#%s tool[%s] already exists", pluginID, toolID)
-			break
-		}
-		tools = append(tools, toolID)
-		if pluginMeta.CompareAndSwap(".tools", old, strings.Join(tools, ",")) {
-			log.Debugf("#%s add tool: %s , available tools: %v", pluginID, toolID, tools)
-			break
 		}
 	}
 }
@@ -192,8 +180,8 @@ func (g *GreekMilkBot) HandleEventFunc(f BotEventHandle) {
 	g.handleEvent = f
 }
 
-func (g *GreekMilkBot) Call(pluginID string, key string, params []any, result []any, timeout time.Duration) error {
-	id := fmt.Sprintf("%s-%s-%d-%.2f", pluginID, key, time.Now().Unix(), rand.Float64())
+func (g *GreekMilkBot) Call(pluginID int, key string, params []any, result []any, timeout time.Duration) error {
+	id := fmt.Sprintf("%d-%s-%d-%.2f", pluginID, key, time.Now().Unix(), rand.Float64())
 	for _, item := range result {
 		paramType := reflect.TypeOf(item)
 		if paramType.Kind() != reflect.Ptr {
@@ -242,15 +230,36 @@ func (g *GreekMilkBot) Call(pluginID string, key string, params []any, result []
 	return nil
 }
 
-func (g *GreekMilkBot) GetMeta(botID string, key string) (string, bool) {
-	if value, ok := g.meta.Load(botID); ok {
-		if load, ok := value.(*sync.Map).Load(key); ok {
-			return load.(string), ok
-		}
+func (g *GreekMilkBot) GetMeta(botID int, key string) (string, bool) {
+	if load, ok := g.plugins[botID].Meta.Load(key); ok {
+		return load.(string), ok
 	}
 	return "", false
 }
 
+func (g *GreekMilkBot) QueryResource(resource *models.Resource) (models.ResourceProvider, error) {
+	plugin := g.plugins[resource.PluginID]
+	if plugin == nil {
+		return nil, errors.New(fmt.Sprintf("plugin not found: %d", resource.PluginID))
+	}
+	value, ok := plugin.Resources.Load(resource.Scheme)
+	if !ok {
+		return nil, errors.New("scheme not found:" + resource.Scheme)
+	}
+	return value.(models.ResourceProvider), nil
+}
+
+func (g *GreekMilkBot) RegisterResource(id int, scheme string, provider models.ResourceProvider) {
+	plugin := g.plugins[id]
+	if plugin == nil {
+		panic(fmt.Sprintf("plugin id %d not found", id))
+	}
+	if _, loaded := plugin.Resources.LoadOrStore(scheme, provider); loaded {
+		panic("scheme already registered: " + scheme)
+	}
+	log.Debugf("add resource scheme: %d#%s", id, scheme)
+}
+
 type GMBSender interface {
-	Call(pluginID string, key string, params []any, result []any, timeout time.Duration) error
+	Call(pluginID int, key string, params []any, result []any, timeout time.Duration) error
 }

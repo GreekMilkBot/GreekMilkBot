@@ -4,39 +4,33 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"slices"
 	"strings"
 
 	"github.com/GreekMilkBot/GreekMilkBot/pkg"
 )
 
-type Config struct {
-	Adapters []core.Adapter
-	Cache    int
-}
+type GMBConfig func(*GreekMilkBot) error
 
-func DefaultConfig() *Config {
-	return &Config{
-		Adapters: make([]core.Adapter, 0),
-		Cache:    100,
-	}
-}
-
-type GMBConfig func(*Config) error
-
-func WithAdapters(adapters ...core.Adapter) GMBConfig {
-	return func(config *Config) error {
-		for _, adapter := range adapters {
-			if adapter != nil && !slices.Contains(config.Adapters, adapter) {
-				config.Adapters = append(config.Adapters, adapter)
+func WithPlugins(plugins ...core.Plugin) GMBConfig {
+	return func(config *GreekMilkBot) error {
+		for _, adapter := range plugins {
+			find := false
+			for _, plugin := range config.plugins {
+				if plugin.Plugin != adapter {
+					find = true
+					break
+				}
+			}
+			if !find {
+				config.plugins = append(config.plugins, NewPlugin(adapter))
 			}
 		}
 		return nil
 	}
 }
 
-func WithAdapterURL(ctx context.Context, urlStr string) GMBConfig {
-	return func(config *Config) error {
+func WithPluginURL(ctx context.Context, urlStr string) GMBConfig {
+	return func(config *GreekMilkBot) error {
 		sType, urlStr, found := strings.Cut(urlStr, "+")
 		if !found {
 			return fmt.Errorf("invalid url: %s", urlStr)
@@ -53,6 +47,6 @@ func WithAdapterURL(ctx context.Context, urlStr string) GMBConfig {
 		if err != nil {
 			return err
 		}
-		return WithAdapters(b)(config)
+		return WithPlugins(b)(config)
 	}
 }

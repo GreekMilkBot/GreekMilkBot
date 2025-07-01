@@ -8,7 +8,7 @@ import (
 )
 
 type Resource struct {
-	PluginID string `json:"id"`
+	PluginID int    `json:"id"`
 	Scheme   string `json:"scheme"`
 	Body     string `json:"body"`
 }
@@ -17,6 +17,39 @@ type Metadata struct {
 	Name      string `yaml:"name,omitempty"`       // 参数为尽力提供，可能不存在
 	Size      int64  `yaml:"size,omitempty"`       // 参数为尽力提供，可能不存在
 	MediaType string `json:"media_type,omitempty"` // 参数为尽力提供，可能不存在
+}
+
+type ResourceProviderFinder interface {
+	QueryResource(resource *Resource) (ResourceProvider, error)
+}
+
+type ResourceProviderManager interface {
+	ResourceProviderFinder
+	RegisterResource(int, string, ResourceProvider)
+}
+
+type ResourceProviderManagerImpl struct {
+	ResourceProviderManager
+	ResourceProviderFinderImpl
+}
+type ResourceProviderFinderImpl struct {
+	ResourceProviderManager
+}
+
+func (b *ResourceProviderManagerImpl) ResourceMeta(resource *Resource) (*Metadata, error) {
+	provider, err := b.QueryResource(resource)
+	if err != nil {
+		return nil, err
+	}
+	return provider.Metadata(resource.Scheme, resource.Body)
+}
+
+func (b *ResourceProviderManagerImpl) ResourceBlob(resource *Resource) (io.ReadCloser, error) {
+	provider, err := b.QueryResource(resource)
+	if err != nil {
+		return nil, err
+	}
+	return provider.Reader(resource.Scheme, resource.Body)
 }
 
 type ResourceProvider interface {
@@ -30,7 +63,6 @@ func HttpMetadata(client *http.Client, urlStr string) (*Metadata, error) {
 		return nil, err
 	}
 	resp, err := client.Head(urlStr)
-
 	if err != nil {
 		if resp != nil {
 			resp.Body.Close()

@@ -12,7 +12,7 @@ var (
 )
 
 type Packet struct {
-	Plugin string
+	Plugin int
 	Type   PacketType
 
 	Data any

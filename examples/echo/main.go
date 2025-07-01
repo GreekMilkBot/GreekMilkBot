@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"go.uber.org/zap/zapcore"
+
 	"github.com/GreekMilkBot/GreekMilkBot/adapters/onebot/v11/apis"
 
 	_ "github.com/GreekMilkBot/GreekMilkBot/adapters"
@@ -18,9 +20,10 @@ import (
 )
 
 func main() {
+	log.SetLevel(zapcore.DebugLevel)
 	ctx := context.Background()
 	testBot, err := gmb.NewGreekMilkBot(
-		gmb.WithAdapterURL(ctx, os.Getenv("BOT_URL")))
+		gmb.WithPluginURL(ctx, os.Getenv("BOT_URL")))
 	if err != nil {
 		panic(err)
 	}

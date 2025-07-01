@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/GreekMilkBot/GreekMilkBot/adapters/onebot/v11/internal/utils"
 	"io"
 	"net/url"
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"github.com/GreekMilkBot/GreekMilkBot/adapters/onebot/v11/internal/utils"
 
 	"github.com/GreekMilkBot/GreekMilkBot/adapters/onebot/v11/apis"
 
@@ -28,7 +29,7 @@ import (
 )
 
 func init() {
-	gmbcore.RegisterAdapter("onebot11", func(ctx context.Context, url url.URL) (gmbcore.Adapter, error) {
+	gmbcore.RegisterAdapter("onebot11", func(ctx context.Context, url url.URL) (gmbcore.Plugin, error) {
 		if url.Scheme != "ws" && url.Scheme != "wss" {
 			return nil, errors.New("unsupported scheme :" + url.Scheme)
 		}
@@ -46,7 +47,7 @@ type OneBotV11Adapter struct {
 
 	bind           *atomic.Bool
 	driver         *driver.WebSocketDriver
-	ctx            *gmbcore.AdapterBus
+	ctx            *gmbcore.PluginBus
 	imageFormatter gmbcore.ResourceFormatter
 }
 
@@ -73,7 +74,7 @@ func NewOneBotV11Adapter(driver *driver.WebSocketDriver) *OneBotV11Adapter {
 	}
 }
 
-func (a *OneBotV11Adapter) Bind(ctx *gmbcore.AdapterBus) error {
+func (a *OneBotV11Adapter) Bind(ctx *gmbcore.PluginBus) error {
 	if a.bind.Swap(true) {
 		return errors.New("already bind")
 	}
@@ -90,7 +91,7 @@ func (a *OneBotV11Adapter) Bind(ctx *gmbcore.AdapterBus) error {
 	})
 }
 
-func (a *OneBotV11Adapter) processMessage(ctx *gmbcore.AdapterBus, msg []byte) error {
+func (a *OneBotV11Adapter) processMessage(ctx *gmbcore.PluginBus, msg []byte) error {
 	e, err := event.JsonMsgToEvent(msg)
 	if err != nil {
 		return err

@@ -8,6 +8,7 @@ require (
 )
 
 require (
+	github.com/deckarep/golang-set/v2 v2.8.0 // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 )

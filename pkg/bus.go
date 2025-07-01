@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"reflect"
 	"sync"
 
@@ -28,55 +27,57 @@ type ActionRequest struct {
 	Params []string `json:"params,omitempty"`
 }
 
-type AdapterBus struct {
-	ID string // bot id
-
-	send func(packetType models.PacketType, data any)
-	rx   chan ActionRequest
-
+type PluginBus struct {
 	context.Context
 
+	ID   int // bot id
+	send func(packetType models.PacketType, data any)
+	rx   chan ActionRequest
 	call *sync.Map
-
-	resources *sync.Map
+	*models.ResourceProviderManagerImpl
 }
 
-func NewAdapterBus(id string, ctx context.Context,
+func NewAdapterBus(ctx context.Context, id int,
+	resources models.ResourceProviderManager,
 	send func(packetType models.PacketType, data any),
-	resources *sync.Map,
-) *AdapterBus {
-	bus := AdapterBus{
-		ID:        id,
-		Context:   ctx,
-		send:      send,
-		rx:        make(chan ActionRequest, 100),
-		call:      &sync.Map{},
-		resources: resources,
+) *PluginBus {
+	bus := PluginBus{
+		ID:      id,
+		Context: ctx,
+		send:    send,
+		rx:      make(chan ActionRequest, 100),
+		call:    new(sync.Map),
+		ResourceProviderManagerImpl: &models.ResourceProviderManagerImpl{
+			ResourceProviderManager: resources,
+			ResourceProviderFinderImpl: models.ResourceProviderFinderImpl{
+				ResourceProviderManager: resources,
+			},
+		},
 	}
 	go bus.receiveLoop()
 	return &bus
 }
 
-func (b *AdapterBus) SendMessage(message models.Message) {
+func (b *PluginBus) SendMessage(message models.Message) {
 	b.send(models.PacketMessage, message)
 }
 
-func (b *AdapterBus) SendEvent(event models.Event) {
+func (b *PluginBus) SendEvent(event models.Event) {
 	b.send(models.PacketAction, event)
 }
 
-func (b *AdapterBus) SendMeta(key string, value string) {
+func (b *PluginBus) SendMeta(key string, value string) {
 	b.send(models.PacketMeta, models.Meta{
 		Key:   key,
 		Value: value,
 	})
 }
 
-func (b *AdapterBus) NewRequest(req ActionRequest) {
+func (b *PluginBus) NewRequest(req ActionRequest) {
 	b.rx <- req
 }
 
-func (b *AdapterBus) receiveLoop() {
+func (b *PluginBus) receiveLoop() {
 	defer b.call.Clear()
 	defer close(b.rx)
 	for {
@@ -93,7 +94,7 @@ func (b *AdapterBus) receiveLoop() {
 	}
 }
 
-func (b *AdapterBus) exec(req ActionRequest, value any) {
+func (b *PluginBus) exec(req ActionRequest, value any) {
 	fnValue := reflect.ValueOf(value)
 	fnType := fnValue.Type()
 	if len(req.Params) != fnType.NumIn() {
@@ -144,7 +145,7 @@ func (b *AdapterBus) exec(req ActionRequest, value any) {
 	})
 }
 
-func (b *AdapterBus) sendError(req ActionRequest, msg error) {
+func (b *PluginBus) sendError(req ActionRequest, msg error) {
 	log.Errorf("Error: %v", msg)
 	b.send(models.PacketAction, ActionResponse{
 		ID:       req.ID,
@@ -154,7 +155,7 @@ func (b *AdapterBus) sendError(req ActionRequest, msg error) {
 	})
 }
 
-func (b *AdapterBus) callFunc(name string, f any) {
+func (b *PluginBus) callFunc(name string, f any) {
 	if f == nil || name == "" {
 		panic("name or func must not be nil")
 	}
@@ -172,20 +173,15 @@ type (
 	Tools    func(ToolFunc) string
 )
 
-func (b *AdapterBus) BindTools(tools Tools) {
+func (b *PluginBus) BindTools(tools Tools) {
 	toolsID := tools(b.callFunc)
 	b.SendMeta(".tools", toolsID)
 }
 
 type ResourceFormatter = func(body string) (models.Resource, error)
 
-func (b *AdapterBus) BindResource(scheme string, provider models.ResourceProvider) ResourceFormatter {
-	child := new(sync.Map)
-	actual, loaded := b.resources.LoadOrStore(b.ID, child)
-	if loaded {
-		child = actual.(*sync.Map)
-	}
-	child.Store(scheme, provider)
+func (b *PluginBus) BindResource(scheme string, provider models.ResourceProvider) ResourceFormatter {
+	b.RegisterResource(b.ID, scheme, provider)
 	return func(body string) (models.Resource, error) {
 		return models.Resource{
 			PluginID: b.ID,
@@ -193,34 +189,4 @@ func (b *AdapterBus) BindResource(scheme string, provider models.ResourceProvide
 			Body:     body,
 		}, nil
 	}
-}
-
-func (b *AdapterBus) ResourceMeta(resource *models.Resource) (*models.Metadata, error) {
-	provider, err := b.getProvider(resource)
-	if err != nil {
-		return nil, err
-	}
-	return provider.Metadata(resource.Scheme, resource.Body)
-}
-
-func (b *AdapterBus) ResourceBlob(resource *models.Resource) (io.ReadCloser, error) {
-	provider, err := b.getProvider(resource)
-	if err != nil {
-		return nil, err
-	}
-	return provider.Reader(resource.Scheme, resource.Body)
-}
-
-func (b *AdapterBus) getProvider(resource *models.Resource) (models.ResourceProvider, error) {
-	value, ok := b.resources.Load(resource.PluginID)
-	if !ok {
-		return nil, errors.New("plugin not found:" + resource.PluginID)
-	}
-	items := value.(*sync.Map)
-	load, ok := items.Load(resource.Scheme)
-	if !ok {
-		return nil, errors.New("scheme not found:" + resource.Scheme)
-	}
-	provider := load.(models.ResourceProvider)
-	return provider, nil
 }

@@ -8,12 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/GreekMilkBot/GreekMilkBot/pkg/tools"
 	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+
+	"github.com/GreekMilkBot/GreekMilkBot/pkg/tools"
 
 	"github.com/GreekMilkBot/GreekMilkBot/pkg/models"
 
@@ -28,7 +29,7 @@ import (
 var defCfg []byte
 
 func init() {
-	core.RegisterAdapter("dummy", func(ctx context.Context, url url.URL) (core.Adapter, error) {
+	core.RegisterAdapter("dummy", func(ctx context.Context, url url.URL) (core.Plugin, error) {
 		if url.Scheme != "bind" {
 			return nil, errors.New("unsupported scheme :" + url.Scheme)
 		}
@@ -74,7 +75,7 @@ func init() {
 type DummyAdapter struct {
 	wrapper        *internal.Wrapper
 	imageFormatter core.ResourceFormatter
-	ctx            *core.AdapterBus
+	ctx            *core.PluginBus
 }
 
 func (d *DummyAdapter) Metadata(scheme, body string) (*models.Metadata, error) {
@@ -125,7 +126,7 @@ func (d *DummyAdapter) Reader(scheme, body string) (io.ReadCloser, error) {
 	}
 }
 
-func (d *DummyAdapter) Bind(ctx *core.AdapterBus) error {
+func (d *DummyAdapter) Bind(ctx *core.PluginBus) error {
 	d.ctx = ctx
 	d.imageFormatter = ctx.BindResource("image", d)
 	d.wrapper.BindBotMessage = func(msg server.QueryMessageResp) {
