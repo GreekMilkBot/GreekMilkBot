@@ -33,13 +33,25 @@ body {
 
 .chat-list-header {
     padding: 16px;
+    display: flex;
+    align-items:center;
+    justify-content: space-between;
     border-bottom: 1px solid #2d2d2d;
     background-color: #1e1e1e;
 }
 
 .chat-list-header h2 {
     font-size: 20px;
+    display: inline-block;
     font-weight: 500;
+    color: #e0e0e0;
+}
+.chat-list-header a {
+    all: unset;
+    text-decoration: none !important;
+    font-size: 14px;
+    cursor: pointer;
+    background-color: transparent;
     color: #e0e0e0;
 }
 

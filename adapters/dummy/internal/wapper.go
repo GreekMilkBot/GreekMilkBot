@@ -43,6 +43,7 @@ func NewWrapper() *Wrapper {
 	t.HandleFunc("/api/messages", handleJSON(t.handleMessages))
 	t.HandleFunc("/api/message", handleJSON(t.handleMessage))
 	t.HandleFunc("/api/send", handleJSON(t.handleSend))
+	t.HandleFunc("/download", handleJSON(t.handleDownload))
 	go t.broker.Start()
 	return t
 }
@@ -106,6 +107,10 @@ func (t *Wrapper) SendGroupMessage(id string, referID string, content []*models.
 	})
 }
 
+func (t *Wrapper) handleDownload(r *http.Request) (any, error) {
+	return t, nil
+}
+
 func (t *Wrapper) handleSend(r *http.Request) (any, error) {
 	req := server.AddMessageReq{}
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -160,6 +165,7 @@ func handleJSON(eval func(r *http.Request) (any, error)) func(http.ResponseWrite
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(a)
 	}
 }

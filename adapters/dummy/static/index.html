@@ -15,6 +15,7 @@
     <div class="chat-list" :class="!display?'show':''">
         <div class="chat-list-header">
             <h2 @click="refreshSession()">会话列表</h2>
+            <a href="/download" target="_blank">导出</a>
         </div>
         <div class="chat-items" id="chatItems">
             <session v-for="( session,sid) in sessions"

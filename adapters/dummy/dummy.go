@@ -39,22 +39,21 @@ func init() {
 		}
 		wrapper := internal.NewWrapper()
 		include := url.Query().Get("include")
-		if include != "" {
-			var data []byte
-			if include == "default" {
-				log.Infof("当前使用默认测试数据")
-				data = defCfg
-			} else {
-				data, err = os.ReadFile(include)
-				if err != nil {
-					return nil, err
-				}
-			}
-			if err := json.Unmarshal(data, wrapper); err != nil {
+		var data []byte
+		if include == "default" || include == "" {
+			log.Infof("当前使用默认测试数据")
+			data = defCfg
+		} else {
+			data, err = os.ReadFile(include)
+			if err != nil {
 				return nil, err
 			}
-
 		}
+		if err := json.Unmarshal(data, wrapper); err != nil {
+			return nil, err
+		}
+
+		log.Infof("测试环境已准备,可访问 http://%s 来调试您的应用", listen.Addr().String())
 		wrapper.Handle("/", http.FileServerFS(static.FS))
 		go func() {
 			select {
