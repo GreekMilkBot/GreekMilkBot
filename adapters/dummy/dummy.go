@@ -147,13 +147,17 @@ func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*m
 	}
 	content := msg.Content
 	depth = depth - 1
+	formatter, err := d.imageFormatter(content.Sender.Avatar)
+	if err != nil {
+		return nil, err
+	}
 	result := models.Message{
 		ID: content.ID,
 		Owner: &models.GuildMember{
 			User: &models.User{
 				Id:     content.Sender.ID,
 				Name:   content.Sender.Name,
-				Avatar: content.Sender.Avatar,
+				Avatar: formatter,
 			},
 			GuildRole: make([]string, 0),
 		},
@@ -162,10 +166,14 @@ func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*m
 	}
 	if msg.Type == "group" {
 		result.MsgType = "guild"
+		imageFormatter, err := d.imageFormatter(msg.TargetAvatar)
+		if err != nil {
+			return nil, err
+		}
 		result.Guild = &models.Guild{
 			Id:     msg.TargetID,
 			Name:   msg.TargetName,
-			Avatar: msg.TargetAvatar,
+			Avatar: imageFormatter,
 		}
 		result.Owner.GuildName = content.Sender.AliasName
 	}
@@ -201,12 +209,16 @@ func (d *DummyAdapter) Dummy2Message(msg server.QueryMessageResp, depth int) (*m
 			if err != nil {
 				return nil, err
 			}
+			avatar, err := d.imageFormatter(u.Avatar)
+			if err != nil {
+				return nil, err
+			}
 			result.Content = append(result.Content, models.ContentAt{
 				Uid: content.Data,
 				User: &models.User{
 					Id:     content.Data,
 					Name:   u.Name,
-					Avatar: u.Avatar,
+					Avatar: avatar,
 				},
 			})
 		}

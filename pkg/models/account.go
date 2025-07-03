@@ -2,9 +2,9 @@ package models
 
 // Guild 群聊
 type Guild struct {
-	Id     string `json:"id"`
-	Name   string `json:"name"`
-	Avatar string `json:"avatar"`
+	Id     string   `json:"id"`
+	Name   string   `json:"name"`
+	Avatar Resource `json:"avatar"`
 }
 
 type GuildMember struct {
@@ -15,7 +15,7 @@ type GuildMember struct {
 }
 
 type User struct {
-	Id     string `json:"id"`
-	Name   string `json:"name"`
-	Avatar string `json:"avatar"`
+	Id     string   `json:"id"`
+	Name   string   `json:"name"`
+	Avatar Resource `json:"avatar"`
 }

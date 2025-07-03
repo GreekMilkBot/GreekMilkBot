@@ -48,7 +48,7 @@ type OneBotV11Adapter struct {
 	bind           *atomic.Bool
 	driver         *driver.WebSocketDriver
 	ctx            *gmbcore.PluginBus
-	imageFormatter gmbcore.ResourceFormatter
+	imageFormatter func(body string) bot_models.Resource
 }
 
 func (a *OneBotV11Adapter) Metadata(scheme, body string) (*bot_models.Metadata, error) {
@@ -79,7 +79,11 @@ func (a *OneBotV11Adapter) Bind(ctx *gmbcore.PluginBus) error {
 		return errors.New("already bind")
 	}
 	a.ctx = ctx
-	a.imageFormatter = ctx.BindResource("image", a)
+	imageFormatter := ctx.BindResource("image", a)
+	a.imageFormatter = func(body string) bot_models.Resource {
+		formatter, _ := imageFormatter(body)
+		return formatter
+	}
 	ctx.BindTools(tools.Sender(a))
 	return a.driver.Bind(func(msg []byte) {
 		log.Debugf("OneBotV11Adapter: Received message: %s", msg)
@@ -150,7 +154,7 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*b
 			User: &bot_models.User{
 				Id:     fmt.Sprintf("%d", e.Sender.UserId),
 				Name:   e.Sender.Nickname,
-				Avatar: fmt.Sprintf("https://q1.qlogo.cn/g?b=qq&nk=%d&s=256", e.Sender.UserId),
+				Avatar: a.imageFormatter(fmt.Sprintf("https://q1.qlogo.cn/g?b=qq&nk=%d&s=256", e.Sender.UserId)),
 			},
 			GuildRole: make([]string, 0),
 		},
@@ -169,7 +173,7 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*b
 		msg.Guild = &bot_models.Guild{
 			Id:     fmt.Sprintf("%d", info.GroupID),
 			Name:   info.GroupName,
-			Avatar: fmt.Sprintf("https://p.qlogo.cn/gh/%d/%d/640", info.GroupID, info.GroupID),
+			Avatar: a.imageFormatter(fmt.Sprintf("https://p.qlogo.cn/gh/%d/%d/640", info.GroupID, info.GroupID)),
 		}
 		msg.Owner.GuildName = e.Sender.Card
 		msg.Owner.GuildRole = []string{e.Sender.Role}
@@ -214,17 +218,13 @@ func (a *OneBotV11Adapter) covertMessage(e *models.CommonMessage, depth int) (*b
 					user = &bot_models.User{
 						Id:     fmt.Sprintf("%d", info.UserID),
 						Name:   info.Nickname,
-						Avatar: fmt.Sprintf("https://q1.qlogo.cn/g?b=qq&nk=%d&s=256", info.UserID),
+						Avatar: a.imageFormatter(fmt.Sprintf("https://q1.qlogo.cn/g?b=qq&nk=%d&s=256", info.UserID)),
 					}
 				}
 				msg.Content = append(msg.Content, bot_models.ContentAt{Uid: qq, User: user})
 			case "image":
-				formatter, err := a.imageFormatter(message.MsgData["url"].(string))
-				if err != nil {
-					return nil, err
-				}
 				msg.Content = append(msg.Content, bot_models.ContentImage{
-					Resource: formatter,
+					Resource: a.imageFormatter(message.MsgData["url"].(string)),
 					Summary:  message.MsgData["summary"].(string),
 				})
 			default:
