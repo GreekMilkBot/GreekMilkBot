@@ -92,7 +92,7 @@ func (g *GreekMilkBot) Run(ctx context.Context) error {
 				Data:   data,
 			}
 		})
-		if err := adapt.Bind(adapt.Bus); err != nil {
+		if err := adapt.Boot(adapt.Bus); err != nil {
 			return errors.Join(err, fmt.Errorf("plugin #%d Errorf", gid))
 		}
 	}

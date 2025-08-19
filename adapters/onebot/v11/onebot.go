@@ -74,7 +74,7 @@ func NewOneBotV11Adapter(driver *driver.WebSocketDriver) *OneBotV11Adapter {
 	}
 }
 
-func (a *OneBotV11Adapter) Bind(ctx *gmbcore.PluginBus) error {
+func (a *OneBotV11Adapter) Boot(ctx *gmbcore.PluginBus) error {
 	if a.bind.Swap(true) {
 		return errors.New("already bind")
 	}

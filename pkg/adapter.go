@@ -13,7 +13,7 @@ func GetAdapter(key string) (PluginHandler, bool) {
 }
 
 type Plugin interface {
-	Bind(ctx *PluginBus) error
+	Boot(ctx *PluginBus) error
 }
 
 type PluginHandler func(ctx context.Context, url url.URL) (Plugin, error)

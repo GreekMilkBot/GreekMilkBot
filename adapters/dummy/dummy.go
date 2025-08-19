@@ -125,7 +125,7 @@ func (d *DummyAdapter) Reader(scheme, body string) (io.ReadCloser, error) {
 	}
 }
 
-func (d *DummyAdapter) Bind(ctx *core.PluginBus) error {
+func (d *DummyAdapter) Boot(ctx *core.PluginBus) error {
 	d.ctx = ctx
 	d.imageFormatter = ctx.BindResource("image", d)
 	d.wrapper.BindBotMessage = func(msg server.QueryMessageResp) {
